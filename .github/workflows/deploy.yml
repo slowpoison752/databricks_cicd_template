@@ -76,15 +76,15 @@ jobs:
 
     - name: Run Feature Tests
       run: |
-          echo "Running NYC Taxi pipeline..."
-          # List jobs and find by name - simplified approach
-          databricks jobs list | grep "NYC Taxi Data Pipeline" || echo "Job not found in list"
-          # Run using bundle (should work after clean deploy)
-          databricks bundle run nyc_taxi_pipeline --target dev || echo "Bundle run failed, but job was deployed"
-          echo "Pipeline completed!"
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        echo "Running NYC Taxi pipeline..."
+        # List jobs and find by name - simplified approach
+        databricks jobs list | grep "NYC Taxi Data Pipeline" || echo "Job not found in list"
+        # Run using bundle (should work after clean deploy)
+        databricks bundle run nyc_taxi_pipeline --target dev || echo "Bundle run failed, but job was deployed"
+        echo "Pipeline completed!"
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
   # Job 3: Deploy to main (only on master branch)
   deploy-main:
