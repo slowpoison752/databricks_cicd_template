@@ -13,6 +13,12 @@ jobs:
 
     - uses: databricks/setup-cli@main
 
+    - name: Build Python Wheel
+      run: |
+          pip install build
+          python -m build
+          ls -la dist/  # Show what was built
+
     - name: Deploy Bundle
       run: databricks bundle deploy
       env:
