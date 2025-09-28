@@ -219,6 +219,7 @@ class NYCTaxiBronzeIngestion:
                 except Exception as uc_error:
                     logger.warning(f"Unity Catalog write failed: {str(uc_error)}")
                     logger.info("Falling back to DBFS storage...")
+
             else:
                 # Legacy DBFS path
                 df_final.write \
@@ -254,7 +255,7 @@ def main():
     source_path = "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
 
     # Write to Unity Catalog instead of DBFS mount
-    target_path = "data_engg_experiments.default.nyc_taxi_bronze"  # catalog.schema.table format
+    target_path = "hive_metastore.default.nyc_taxi_bronze"  # catalog.schema.table format
 
     # Initialize and run ingestion
     ingestion = NYCTaxiBronzeIngestion()
