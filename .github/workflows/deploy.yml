@@ -36,3 +36,4 @@ jobs:
     - name: Run test job
       run: |
         databricks bundle run hello_job --target dev
+        
