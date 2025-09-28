@@ -181,55 +181,50 @@ class NYCTaxiBronzeIngestion:
         logger.info(f"Starting NYC taxi data ingestion from {source_path}")
 
         try:
-            # Read source data - auto-detect format
+            # Read source data
             logger.info("Reading source data...")
-
-            if source_path.endswith('.parquet'):
-                df = self.spark.read.parquet(source_path)
-            elif source_path.endswith('.csv') or source_path.endswith('.csv.gz'):
-                df = self.spark.read \
-                    .option("header", "true") \
-                    .option("inferSchema", "true") \
-                    .csv(source_path)
-            else:
-                # Default to CSV
-                df = self.spark.read \
-                    .option("header", "true") \
-                    .option("inferSchema", "true") \
-                    .csv(source_path)
+            df = self.spark.read \
+                .option("header", "true") \
+                .option("inferSchema", "true") \
+                .csv(source_path)
 
             initial_count = df.count()
             logger.info(f"Read {initial_count} records from source")
 
-            # Basic data cleaning (simplified for parquet)
-            df_cleaned = self._clean_basic_issues(df)
-
-            # Data quality validation
-            quality_score, quality_issues = self._validate_data_quality(df_cleaned)
-
             # Add metadata columns
-            df_final = self._add_metadata_columns(df_cleaned)
+            df_final = self._add_metadata_columns(df)
 
-            # Write to Delta Lake Bronze table
-            logger.info(f"Writing to Delta Bronze table: {target_path}")
-            df_final.write \
-                .format("delta") \
-                .mode("overwrite") \
-                .option("overwriteSchema", "true") \
-                .save(target_path)
+            # Write to Unity Catalog table
+            logger.info(f"Writing to Unity Catalog table: {target_path}")
+
+            # Check if target_path is Unity Catalog format (catalog.schema.table)
+            if target_path.count('.') == 2:
+                # Unity Catalog table
+                df_final.write \
+                    .format("delta") \
+                    .mode("overwrite") \
+                    .option("overwriteSchema", "true") \
+                    .saveAsTable(target_path)
+            else:
+                # Legacy DBFS path
+                df_final.write \
+                    .format("delta") \
+                    .mode("overwrite") \
+                    .option("overwriteSchema", "true") \
+                    .save(target_path)
 
             final_count = df_final.count()
 
             logger.info("=== Bronze Ingestion Completed Successfully ===")
             logger.info(f"Records processed: {initial_count}")
             logger.info(f"Records written: {final_count}")
-            logger.info(f"Quality score: {quality_score:.2f}%")
+            logger.info(f"Data location: {target_path}")
 
             return {
                 "status": "success",
                 "records_processed": initial_count,
                 "records_written": final_count,
-                "quality_score": quality_score
+                "target_path": target_path
             }
 
         except Exception as e:
@@ -241,9 +236,11 @@ def main():
     """Main execution function for NYC Taxi Bronze ingestion"""
     logger.info("=== NYC Taxi Bronze Ingestion Job Started ===")
 
-    # Use Databricks sample data instead of external URL
+    # Use Databricks sample data
     source_path = "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
-    target_path = "/mnt/delta/bronze/nyc_taxi"
+
+    # Write to Unity Catalog instead of DBFS mount
+    target_path = "data_engg_experiments.default.nyc_taxi_bronze"  # catalog.schema.table format
 
     # Initialize and run ingestion
     ingestion = NYCTaxiBronzeIngestion()
