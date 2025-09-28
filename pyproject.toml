@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databricks-test"
+version = "0.1.0"
+description = "Minimal Databricks deployment test"
+dependencies = [
+    "databricks-cli>=0.17.0"
+]
+
+[project.entry-points."databricks.jobs"]
+hello_databricks = "src.hello_databricks:main"
