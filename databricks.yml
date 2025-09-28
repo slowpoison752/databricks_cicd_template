@@ -22,5 +22,5 @@ resources:
               spark.master: local[*]
             custom_tags:
               ResourceClass: SingleNode
-          notebook_task:
-            notebook_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/files/src/hello_databricks
+          spark_python_task:
+            python_file: file:fuse:///.bundle/test-deployment/files/src/hello_databricks.py
