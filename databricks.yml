@@ -56,7 +56,7 @@ resources:
       channel: "CURRENT"
 
       # Edition
-      edition: "CORE"  # Use CORE for cost optimization, PRO for advanced features
+      edition: "ADVANCED"  # Use CORE for cost optimization, PRO for advanced features
 
       # Continuous vs triggered
       continuous: false  # Set to true for real-time processing
