@@ -198,13 +198,27 @@ class NYCTaxiBronzeIngestion:
             logger.info(f"Writing to Unity Catalog table: {target_path}")
 
             # Check if target_path is Unity Catalog format (catalog.schema.table)
+            # Create catalog and schema if they don't exist
             if target_path.count('.') == 2:
-                # Unity Catalog table
-                df_final.write \
-                    .format("delta") \
-                    .mode("overwrite") \
-                    .option("overwriteSchema", "true") \
-                    .saveAsTable(target_path)
+                catalog, schema, table = target_path.split('.')
+
+                try:
+                    # Create catalog if it doesn't exist
+                    self.spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
+                    logger.info(f"Ensured catalog {catalog} exists")
+
+                    # Create schema if it doesn't exist
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
+                    logger.info(f"Ensured schema {catalog}.{schema} exists")
+                    # Unity Catalog table
+                    df_final.write \
+                        .format("delta") \
+                        .mode("overwrite") \
+                        .option("overwriteSchema", "true") \
+                        .saveAsTable(target_path)
+                except Exception as uc_error:
+                    logger.warning(f"Unity Catalog write failed: {str(uc_error)}")
+                    logger.info("Falling back to DBFS storage...")
             else:
                 # Legacy DBFS path
                 df_final.write \
