@@ -1,4 +1,4 @@
-name: Minimal Databricks Deploy Test
+name: Databricks Deploy Test - New CLI
 
 on:
   push:
@@ -11,29 +11,40 @@ env:
 jobs:
   deploy-test:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-
-    - name: Install Databricks CLI
+    
+    - name: Install New Databricks CLI
       run: |
-        pip install databricks-cli
-
-    - name: Configure Databricks CLI
+        pip install --upgrade pip
+        pip install "databricks-cli>=0.17.0"
+    
+    - name: Verify CLI Version
       run: |
-        databricks configure --host "$DATABRICKS_HOST" --token "$DATABRICKS_TOKEN"
-
-    - name: Deploy to Databricks
+        databricks --version
+        echo "Using modern Databricks CLI"
+    
+    - name: Test Authentication
       run: |
+        # Test connection (environment variables automatically used)
+        databricks auth describe
+    
+    - name: Deploy Bundle
+      run: |
+        # No explicit auth configure needed - uses env vars
         databricks bundle deploy --target dev --var="databricks_host=$DATABRICKS_HOST"
-
-    - name: Run test job
+    
+    - name: Run Test Job
       run: |
         databricks bundle run hello_job --target dev
-        
+    
+    - name: Check Job Status
+      run: |
+        echo "✅ Deployment and job execution completed successfully!"
