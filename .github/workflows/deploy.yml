@@ -1,50 +1,26 @@
-name: Databricks Deploy Test - New CLI
+name: Databricks Asset Bundles
 
 on:
   push:
     branches: [master]
 
-env:
-  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
 jobs:
-  deploy-test:
+  deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install New Databricks CLI
-      run: |
-        pip install --upgrade pip
-        pip install "databricks-cli>=0.17.0"
-    
-    - name: Verify CLI Version
-      run: |
-        databricks --version
-        echo "Using modern Databricks CLI"
-    
-    - name: Configure Databricks CLI
-      run: |
-        mkdir -p ~/.databricks
-        echo -e "[DEFAULT]\nhost = $DATABRICKS_HOST\ntoken = $DATABRICKS_TOKEN" > ~/.databricks/databricks.cfg
-    
+    - uses: actions/checkout@v4
+
+    - uses: databricks/setup-cli@main
+
     - name: Deploy Bundle
-      run: |
-        # No explicit auth configure needed - uses env vars
-        databricks bundle deploy --target dev --var="databricks_host=$DATABRICKS_HOST"
-    
-    - name: Run Test Job
-      run: |
-        databricks bundle run hello_job --target dev
-    
-    - name: Check Job Status
-      run: |
-        echo "✅ Deployment and job execution completed successfully!"
+      run: databricks bundle deploy
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+    - name: Run Job
+      run: databricks bundle run hello_job
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
