@@ -1,3 +1,4 @@
+
 bundle:
   name: test-deployment
 
@@ -24,7 +25,7 @@ environments:
       dlt_target_schema: "nyc_taxi_dlt${var.environment_suffix}"
 
 resources:
-  # NEW DLT PIPELINE - Running in parallel
+  # NEW DLT PIPELINE - Using Serverless for no quota issues
   pipelines:
     nyc_taxi_dlt_pipeline:
       name: "NYC Taxi DLT Pipeline${var.environment_suffix}"
@@ -32,20 +33,8 @@ resources:
       # DLT Configuration
       target: "${var.dlt_target_catalog}.${var.dlt_target_schema}"
 
-      # Compute configuration - separate from job resources
-      clusters:
-        - label: "default"
-          autoscale:
-            min_workers: 0
-            max_workers: 2
-          node_type_id: "Standard_D4s_v3"
-          spark_version: "13.3.x-scala2.12"
-          spark_conf:
-            "spark.databricks.cluster.profile": "singleNode"
-          custom_tags:
-            environment: "${var.environment_suffix}"
-            pipeline_type: "dlt"
-            cost_center: "data_engineering"
+      # Serverless configuration - no VM management needed!
+      serverless: true
 
       # Pipeline configuration
       configuration:
@@ -89,7 +78,7 @@ resources:
         - task_key: bronze_ingestion
           new_cluster:
             spark_version: 13.3.x-scala2.12
-            node_type_id: Standard_D4s_v3
+            node_type_id: Standard_DS3_v2  # More commonly available VM size
             num_workers: 0
             spark_conf:
               spark.databricks.cluster.profile: singleNode
@@ -124,6 +113,133 @@ resources:
       email_notifications:
         on_failure:
           - "data-engineering@company.com"  # Replace with your email
+
+#bundle:
+#  name: test-deployment
+#
+#variables:
+#  environment_suffix:
+#    description: "Environment suffix for feature branches"
+#    default: ""
+#
+#  # New DLT-specific variables
+#  dlt_target_catalog:
+#    description: "Target catalog for DLT pipeline"
+#    default: "hive_metastore"
+#
+#  dlt_target_schema:
+#    description: "Target schema for DLT pipeline"
+#    default: "nyc_taxi_dlt"
+#
+#environments:
+#  dev:
+#    default: true
+#    workspace:
+#      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
+#    variables:
+#      dlt_target_schema: "nyc_taxi_dlt${var.environment_suffix}"
+#
+#resources:
+#  # NEW DLT PIPELINE - Running in parallel
+#  pipelines:
+#    nyc_taxi_dlt_pipeline:
+#      name: "NYC Taxi DLT Pipeline${var.environment_suffix}"
+#
+#      # DLT Configuration
+#      target: "${var.dlt_target_catalog}.${var.dlt_target_schema}"
+#
+#      # Compute configuration - separate from job resources
+#      clusters:
+#        - label: "default"
+#          autoscale:
+#            min_workers: 0
+#            max_workers: 2
+#          node_type_id: "Standard_D4s_v3"
+#          spark_version: "13.3.x-scala2.12"
+#          spark_conf:
+#            "spark.databricks.cluster.profile": "singleNode"
+#          custom_tags:
+#            environment: "${var.environment_suffix}"
+#            pipeline_type: "dlt"
+#            cost_center: "data_engineering"
+#
+#      # Pipeline configuration
+#      configuration:
+#        "source_path": "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
+#        "environment_suffix": "${var.environment_suffix}"
+#        "pipeline_mode": "development"  # Use 'production' for main branch
+#
+#      # Libraries - DLT pipeline code
+#      libraries:
+#        - file:
+#            path: ./src/dlt/nyc_taxi_dlt_bronze.py
+#        - file:
+#            path: ./src/dlt/nyc_taxi_dlt_silver.py
+#
+#      # Enable expectations and data quality
+#      development: true
+#
+#      # Channel for DLT runtime
+#      channel: "CURRENT"
+#
+#      # Edition
+#      edition: "CORE"  # Use CORE for cost optimization, PRO for advanced features
+#
+#      # Continuous vs triggered
+#      continuous: false  # Set to true for real-time processing
+#
+#      # Notifications (optional)
+#      notifications:
+#        - email_recipients:
+#            - "data-engineering@company.com"  # Replace with your email
+#          alerts:
+#            - "on-update-failure"
+#            - "on-flow-failure"
+#
+#  # JOBS SECTION - Both legacy and DLT runner
+#  jobs:
+#    # EXISTING JOB - Simplified, focused on bronze ingestion
+#    nyc_taxi_pipeline:
+#      name: NYC Taxi Data Pipeline
+#      tasks:
+#        - task_key: bronze_ingestion
+#          new_cluster:
+#            spark_version: 13.3.x-scala2.12
+#            node_type_id: Standard_D4s_v3
+#            num_workers: 0
+#            spark_conf:
+#              spark.databricks.cluster.profile: singleNode
+#              spark.master: local[*]
+#            custom_tags:
+#              ResourceClass: SingleNode
+#            data_security_mode: SINGLE_USER
+#            runtime_engine: PHOTON
+#          spark_python_task:
+#            python_file: ./src/jobs/bronze_ingestion.py
+#          timeout_seconds: 3600
+#
+#    # OPTIONAL: DLT Job Runner - For CI/CD integration
+#    run_dlt_pipeline:
+#      name: "DLT Pipeline Runner${var.environment_suffix}"
+#
+#      tasks:
+#        - task_key: trigger_dlt_pipeline
+#          pipeline_task:
+#            pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
+#            full_refresh: false  # Set to true for complete refresh
+#
+#          timeout_seconds: 7200  # 2 hours timeout
+#
+#      # Run on a schedule (optional)
+#      schedule:
+#        quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
+#        timezone_id: "UTC"
+#        pause_status: "PAUSED"  # Start paused, enable manually
+#
+#      # Email notifications
+#      email_notifications:
+#        on_failure:
+#          - "data-engineering@company.com"  # Replace with your email
 
 
 #bundle:
