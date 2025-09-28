@@ -15,7 +15,7 @@ resources:
         - task_key: hello_task
           new_cluster:
             spark_version: 13.3.x-scala2.12
-            node_type_id: Standard_DS3_v2
+            node_type_id: Standard_D4s_v3
             num_workers: 0
           python_wheel_task:
             package_name: databricks_test
