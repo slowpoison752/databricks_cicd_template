@@ -31,10 +31,10 @@ jobs:
         databricks --version
         echo "Using modern Databricks CLI"
     
-    - name: Test Authentication
+    - name: Configure Databricks CLI
       run: |
-        # Test connection (environment variables automatically used)
-        databricks auth describe
+        mkdir -p ~/.databricks
+        echo -e "[DEFAULT]\nhost = $DATABRICKS_HOST\ntoken = $DATABRICKS_TOKEN" > ~/.databricks/databricks.cfg
     
     - name: Deploy Bundle
       run: |
