@@ -2,7 +2,7 @@ name: Minimal Databricks Deploy Test
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 env:
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
