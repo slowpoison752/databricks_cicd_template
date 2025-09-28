@@ -23,4 +23,4 @@ resources:
             custom_tags:
               ResourceClass: SingleNode
           spark_python_task:
-            python_file: file:fuse:///.bundle/test-deployment/files/src/hello_databricks.py
+            python_file: ./src/hello_databricks.py
