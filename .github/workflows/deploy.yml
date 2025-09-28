@@ -75,17 +75,9 @@ jobs:
 
     - name: Run Feature Tests
       run: |
-        echo "Running feature-specific tests..."
-        
-        # Test hello job
-        echo "Testing hello job..."
-        databricks bundle run hello_job --target dev
-        
-        # Test bronze ingestion job  
-        echo "Testing bronze ingestion job..."
-        databricks bundle run bronze_ingestion_job --target dev
-        
-        echo "Feature branch testing completed!"
+        echo "Running NYC Taxi pipeline..."
+        databricks bundle run nyc_taxi_pipeline --target dev
+        echo "Pipeline completed!"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -111,12 +103,9 @@ jobs:
 
     - name: Run Full Pipeline Test
       run: |
-        echo "Running full pipeline test..."
-        
-        # Run the complete test pipeline
-        databricks bundle run test_pipeline --target dev
-        
-        echo "Main branch deployment completed!"
+        echo "Running NYC Taxi pipeline..."
+        databricks bundle run nyc_taxi_pipeline --target dev
+        echo "Pipeline completed!"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

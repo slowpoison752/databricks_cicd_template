@@ -178,31 +178,30 @@ class NYCTaxiBronzeIngestion:
         return df
 
     def ingest_nyc_taxi_data(self, source_path, target_path):
-        """
-        Main ingestion function
-
-        Template pattern: Standard ingestion flow for any data source
-
-        Args:
-            source_path: Path to source data (CSV, Parquet, etc.)
-            target_path: Delta table target path
-        """
         logger.info(f"Starting NYC taxi data ingestion from {source_path}")
 
         try:
-            # Read source data with schema
+            # Read source data - auto-detect format
             logger.info("Reading source data...")
-            df = (
-                self.spark.read.option("header", "true")
-                .option("inferSchema", "false")
-                .schema(self._get_nyc_taxi_schema())
-                .csv(source_path)
-            )
+
+            if source_path.endswith('.parquet'):
+                df = self.spark.read.parquet(source_path)
+            elif source_path.endswith('.csv') or source_path.endswith('.csv.gz'):
+                df = self.spark.read \
+                    .option("header", "true") \
+                    .option("inferSchema", "true") \
+                    .csv(source_path)
+            else:
+                # Default to CSV
+                df = self.spark.read \
+                    .option("header", "true") \
+                    .option("inferSchema", "true") \
+                    .csv(source_path)
 
             initial_count = df.count()
             logger.info(f"Read {initial_count} records from source")
 
-            # Basic data cleaning
+            # Basic data cleaning (simplified for parquet)
             df_cleaned = self._clean_basic_issues(df)
 
             # Data quality validation
@@ -213,31 +212,24 @@ class NYCTaxiBronzeIngestion:
 
             # Write to Delta Lake Bronze table
             logger.info(f"Writing to Delta Bronze table: {target_path}")
-            df_final.write.format("delta").mode("overwrite").option(
-                "overwriteSchema", "true"
-            ).option("delta.autoOptimize.optimizeWrite", "true").partitionBy(
-                "pickup_year", "pickup_month"
-            ).save(
-                target_path
-            )
+            df_final.write \
+                .format("delta") \
+                .mode("overwrite") \
+                .option("overwriteSchema", "true") \
+                .save(target_path)
 
             final_count = df_final.count()
 
-            # Log success metrics
             logger.info("=== Bronze Ingestion Completed Successfully ===")
             logger.info(f"Records processed: {initial_count}")
             logger.info(f"Records written: {final_count}")
-            logger.info(f"Data quality score: {quality_score:.2f}%")
-            logger.info(f"Target location: {target_path}")
-            logger.info("Ready for Silver layer processing!")
+            logger.info(f"Quality score: {quality_score:.2f}%")
 
             return {
                 "status": "success",
                 "records_processed": initial_count,
                 "records_written": final_count,
-                "quality_score": quality_score,
-                "quality_issues": quality_issues,
-                "target_path": target_path,
+                "quality_score": quality_score
             }
 
         except Exception as e:
