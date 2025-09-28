@@ -191,37 +191,27 @@ class NYCTaxiBronzeIngestion:
             initial_count = df.count()
             logger.info(f"Read {initial_count} records from source")
 
+            # Basic data cleaning (add this back)
+            df_cleaned = self._clean_basic_issues(df)
+
+            # Data quality validation (add this back)
+            quality_score, quality_issues = self._validate_data_quality(df_cleaned)
+
             # Add metadata columns
-            df_final = self._add_metadata_columns(df)
+            df_final = self._add_metadata_columns(df_cleaned)
 
-            # Write to Unity Catalog table
-            logger.info(f"Writing to Unity Catalog table: {target_path}")
+            # Write to table (simplified)
+            logger.info(f"Writing to table: {target_path}")
 
-            # Check if target_path is Unity Catalog format (catalog.schema.table)
-            # Create catalog and schema if they don't exist
             if target_path.count('.') == 2:
-                catalog, schema, table = target_path.split('.')
-
-                try:
-                    # Create catalog if it doesn't exist
-                    self.spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
-                    logger.info(f"Ensured catalog {catalog} exists")
-
-                    # Create schema if it doesn't exist
-                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
-                    logger.info(f"Ensured schema {catalog}.{schema} exists")
-                    # Unity Catalog table
-                    df_final.write \
-                        .format("delta") \
-                        .mode("overwrite") \
-                        .option("overwriteSchema", "true") \
-                        .saveAsTable(target_path)
-                except Exception as uc_error:
-                    logger.warning(f"Unity Catalog write failed: {str(uc_error)}")
-                    logger.info("Falling back to DBFS storage...")
-
+                # Three-level namespace (works for both hive_metastore and Unity Catalog)
+                df_final.write \
+                    .format("delta") \
+                    .mode("overwrite") \
+                    .option("overwriteSchema", "true") \
+                    .saveAsTable(target_path)
             else:
-                # Legacy DBFS path
+                # DBFS path
                 df_final.write \
                     .format("delta") \
                     .mode("overwrite") \
@@ -233,12 +223,14 @@ class NYCTaxiBronzeIngestion:
             logger.info("=== Bronze Ingestion Completed Successfully ===")
             logger.info(f"Records processed: {initial_count}")
             logger.info(f"Records written: {final_count}")
+            logger.info(f"Quality score: {quality_score:.2f}%")
             logger.info(f"Data location: {target_path}")
 
             return {
                 "status": "success",
                 "records_processed": initial_count,
                 "records_written": final_count,
+                "quality_score": quality_score,
                 "target_path": target_path
             }
 
