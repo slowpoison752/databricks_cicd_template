@@ -39,11 +39,10 @@ resources:
           spark_conf:
             "spark.databricks.cluster.profile": "singleNode"
             "spark.master": "local[*]"
-          node_type_id: "Standard_DS2_v2"  # Smaller, more available VM
+          node_type_id: "Standard_DS4_v2"  # Smaller, more available VM
           spark_version: "13.3.x-scala2.12"
           num_workers: 0  # Single node
           data_security_mode: "SINGLE_USER"
-          runtime_engine: "PHOTON"
           custom_tags:
             environment: "${var.environment_suffix}"
             pipeline_type: "dlt"
