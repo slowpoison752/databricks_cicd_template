@@ -68,14 +68,14 @@ jobs:
     - name: Deploy to Feature Environment
       run: |
         # Deploy with branch-specific target
-        databricks bundle deploy --target dev --var="databricks_host=$DATABRICKS_HOST" --var="environment_suffix=-${{ env.FEATURE_ENV }}"
+        databricks bundle deploy --target dev --var="environment_suffix=-${{ env.FEATURE_ENV }}"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
     - name: Run Feature Tests
       run: |
-        echo "🧪 Running feature-specific tests..."
+        echo "Running feature-specific tests..."
         
         # Test hello job
         echo "Testing hello job..."
@@ -85,7 +85,7 @@ jobs:
         echo "Testing bronze ingestion job..."
         databricks bundle run bronze_ingestion_job --target dev
         
-        echo "✅ Feature branch testing completed!"
+        echo "Feature branch testing completed!"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -104,31 +104,19 @@ jobs:
 
     - name: Deploy to Main Environment
       run: |
-        databricks bundle deploy --target dev --var="databricks_host=$DATABRICKS_HOST"
+        databricks bundle deploy --target dev
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
     - name: Run Full Pipeline Test
       run: |
-        echo "🚀 Running full pipeline test..."
+        echo "Running full pipeline test..."
         
         # Run the complete test pipeline
         databricks bundle run test_pipeline --target dev
         
-        echo "✅ Main branch deployment completed!"
+        echo "Main branch deployment completed!"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
-  # Job 4: Clean up feature environments (manual trigger)
-  cleanup-feature:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-
-    steps:
-    - name: Cleanup Feature Environments
-      run: |
-        echo "🧹 Cleaning up old feature environments..."
-        echo "This would remove old feature branch deployments"
-        # Add cleanup logic here if needed
