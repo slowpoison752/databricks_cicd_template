@@ -67,8 +67,9 @@ jobs:
 
     - name: Deploy to Feature Environment
       run: |
-        # Deploy with branch-specific target and force lock to fix state issues
-        databricks bundle deploy --target dev --var="environment_suffix=-${{ env.FEATURE_ENV }}" --force-lock
+        # Destroy existing resources first, then deploy fresh
+        databricks bundle destroy --target dev --var="environment_suffix=-${{ env.FEATURE_ENV }}" --auto-approve || true
+        databricks bundle deploy --target dev --var="environment_suffix=-${{ env.FEATURE_ENV }}"
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -96,11 +97,12 @@ jobs:
 
     - name: Deploy to Main Environment
       run: |
-        # Deploy with force lock to fix state issues
-        databricks bundle deploy --target dev --force-lock
-      env:
-        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # Destroy existing resources first, then deploy fresh
+          databricks bundle destroy --target dev --auto-approve || true
+          databricks bundle deploy --target dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
     - name: Run Full Pipeline Test
       run: |

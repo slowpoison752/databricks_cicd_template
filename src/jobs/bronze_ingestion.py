@@ -238,24 +238,12 @@ class NYCTaxiBronzeIngestion:
 
 
 def main():
-    """
-    Main execution function for NYC Taxi Bronze ingestion
-
-    Template pattern: Standard main function for any ingestion job
-    """
+    """Main execution function for NYC Taxi Bronze ingestion"""
     logger.info("=== NYC Taxi Bronze Ingestion Job Started ===")
 
-    # Configuration - can be overridden by environment variables
-    # Template pattern: Externalize configuration for reusability
-    source_path = (
-        "https://d37ci6vzurychx.cloudfront.net/trip-data/"
-        "yellow_tripdata_2023-01.parquet"
-    )
+    # Use Databricks sample data instead of external URL
+    source_path = "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
     target_path = "/mnt/delta/bronze/nyc_taxi"
-
-    # For local testing, use a small sample dataset
-    # source_path = ("/databricks-datasets/nyctaxi/tripdata/yellow/"
-    #                "yellow_tripdata_2019-01.csv.gz")
 
     # Initialize and run ingestion
     ingestion = NYCTaxiBronzeIngestion()
@@ -271,7 +259,6 @@ def main():
     except Exception as e:
         logger.error(f"Job failed: {str(e)}")
         raise
-
 
 if __name__ == "__main__":
     main()
