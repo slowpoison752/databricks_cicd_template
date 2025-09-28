@@ -1,14 +1,20 @@
 bundle:
   name: test-deployment
 
+variables:
+  environment_suffix:
+    description: "Environment suffix for feature branches"
+    default: ""
+
 environments:
   dev:
     default: true
     workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
 
 resources:
   jobs:
+    # Original hello job (keep working)
     hello_job:
       name: Hello Databricks Job
       tasks:
@@ -24,3 +30,55 @@ resources:
               ResourceClass: SingleNode
           spark_python_task:
             python_file: ./src/hello_databricks.py
+
+    # NEW: Bronze ingestion job
+    bronze_ingestion_job:
+      name: NYC Taxi Bronze Ingestion
+      tasks:
+        - task_key: bronze_ingestion
+          new_cluster:
+            spark_version: 13.3.x-scala2.12
+            node_type_id: Standard_D4s_v3
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+            custom_tags:
+              ResourceClass: SingleNode
+              Environment: dev
+              Pipeline: bronze
+          spark_python_task:
+            python_file: ./src/jobs/bronze_ingestion.py
+          timeout_seconds: 3600
+
+    # NEW: Test pipeline (runs both jobs)
+    test_pipeline:
+      name: Test Pipeline - Hello + Bronze
+      tasks:
+        - task_key: hello_test
+          new_cluster:
+            spark_version: 13.3.x-scala2.12
+            node_type_id: Standard_D4s_v3
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+            custom_tags:
+              ResourceClass: SingleNode
+          spark_python_task:
+            python_file: ./src/hello_databricks.py
+
+        - task_key: bronze_test
+          depends_on:
+            - task_key: hello_test
+          new_cluster:
+            spark_version: 13.3.x-scala2.12
+            node_type_id: Standard_D4s_v3
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+            custom_tags:
+              ResourceClass: SingleNode
+          spark_python_task:
+            python_file: ./src/jobs/bronze_ingestion.py

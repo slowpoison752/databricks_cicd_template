@@ -12,6 +12,7 @@ def main():
     # Test basic Spark functionality
     try:
         from pyspark.sql import SparkSession
+
         spark = SparkSession.builder.appName("HelloTest").getOrCreate()
 
         # Create simple DataFrame
