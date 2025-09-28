@@ -1,14 +1,10 @@
 bundle:
   name: test-deployment
 
-workspace:
-  host: ${var.databricks_host}
-
 environments:
   dev:
     default: true
     workspace:
-      host: ${var.databricks_host}
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}
 
 resources:
