@@ -10,7 +10,7 @@ variables:
   # New DLT-specific variables
   dlt_target_catalog:
     description: "Target catalog for DLT pipeline"
-    default: "hive_metastore"
+    default: "main"  # Use Unity Catalog, not hive_metastore
 
   dlt_target_schema:
     description: "Target schema for DLT pipeline"
@@ -22,25 +22,39 @@ environments:
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
     variables:
-      dlt_target_schema: "nyc_taxi_dlt${var.environment_suffix}"
+      dlt_target_schema: nyc_taxi_dlt${var.environment_suffix}
 
 resources:
-  # NEW DLT PIPELINE - Using Serverless for no quota issues
+  # NEW DLT PIPELINE - Using regular clusters (works without Unity Catalog)
   pipelines:
     nyc_taxi_dlt_pipeline:
       name: "NYC Taxi DLT Pipeline${var.environment_suffix}"
 
-      # DLT Configuration
-      target: "${var.dlt_target_catalog}.${var.dlt_target_schema}"
+      # DLT Configuration - back to hive_metastore for compatibility
+      target: "hive_metastore.${var.dlt_target_schema}${var.environment_suffix}"
 
-      # Serverless configuration - no VM management needed!
-      serverless: true
+      # Regular cluster configuration (no serverless requirements)
+      clusters:
+        - label: "default"
+          spark_conf:
+            "spark.databricks.cluster.profile": "singleNode"
+            "spark.master": "local[*]"
+          node_type_id: "Standard_DS2_v2"  # Smaller, more available VM
+          spark_version: "13.3.x-scala2.12"
+          num_workers: 0  # Single node
+          data_security_mode: "SINGLE_USER"
+          runtime_engine: "PHOTON"
+          custom_tags:
+            environment: "${var.environment_suffix}"
+            pipeline_type: "dlt"
+            cost_center: "data_engineering"
+            ResourceClass: "SingleNode"
 
       # Pipeline configuration
       configuration:
         "source_path": "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
         "environment_suffix": "${var.environment_suffix}"
-        "pipeline_mode": "development"  # Use 'production' for main branch
+        "pipeline_mode": "development"
 
       # Libraries - DLT pipeline code
       libraries:
@@ -55,11 +69,11 @@ resources:
       # Channel for DLT runtime
       channel: "CURRENT"
 
-      # Edition
-      edition: "ADVANCED"  # Use CORE for cost optimization, PRO for advanced features
+      # Edition - CORE works with regular clusters
+      edition: "CORE"
 
       # Continuous vs triggered
-      continuous: false  # Set to true for real-time processing
+      continuous: false
 
       # Notifications (optional)
       notifications:
