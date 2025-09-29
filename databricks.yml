@@ -1,310 +1,398 @@
+# ============================================================================
+# DATABRICKS ASSET BUNDLE - USER CONFIGURATION
+# ============================================================================
+# 🎯 CUSTOMIZE THESE VALUES FOR YOUR PROJECT
+# ============================================================================
 
 bundle:
-  name: test-deployment
+  name: test-deployment  # 📝 CHANGE THIS: Your project name (e.g., "my-data-pipeline")
 
+# ============================================================================
+# 🔧 USER CONFIGURABLE VARIABLES - EDIT THESE FOR YOUR PROJECT
+# ============================================================================
 variables:
+  # ----------------------------------------------------------------------------
+  # PROJECT CONFIGURATION - Update these for your use case
+  # ----------------------------------------------------------------------------
+  project_name:
+    description: "Project name for resources"
+    default: "nyc_taxi"  # 📝 CHANGE THIS: Your project name
+
+  source_data_path:
+    description: "Path to source data files"
+    default: "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
+    # 📝 CHANGE THIS: Your data source path
+
+  notification_email:
+    description: "Email for pipeline notifications"
+    default: "data-engineering@company.com"  # 📝 CHANGE THIS: Your email
+
+  # ----------------------------------------------------------------------------
+  # UNITY CATALOG CONFIGURATION - Set your catalog/schema names
+  # ----------------------------------------------------------------------------
+  catalog_name:
+    description: "Unity Catalog name (varies by environment)"
+    default: "main"  # 📝 CHANGE THIS: Your catalog name
+
+  schema_name:
+    description: "Schema name within the catalog"
+    default: "nyc_taxi"  # 📝 CHANGE THIS: Your schema name
+
+  # ----------------------------------------------------------------------------
+  # DEPLOYMENT TOGGLES - Control what gets deployed
+  # ----------------------------------------------------------------------------
+  deploy_dlt:
+    description: "Deploy DLT pipeline (true/false)"
+    default: "true"  # Set to "false" to skip DLT deployment
+
+  deploy_workflow:
+    description: "Deploy workflow jobs (true/false)"
+    default: "true"  # Set to "false" to skip workflow deployment
+
+  deploy_dlt_runner:
+    description: "Deploy DLT runner job (true/false)"
+    default: "true"  # Set to "false" to skip DLT runner deployment
+
+  # ----------------------------------------------------------------------------
+  # DLT PIPELINE CONFIGURATION
+  # ----------------------------------------------------------------------------
+  dlt_pipeline_name:
+    description: "Name of the DLT pipeline"
+    default: "NYC Taxi DLT Pipeline"  # 📝 CHANGE THIS: Your pipeline name
+
+  dlt_edition:
+    description: "DLT edition: CORE, PRO, or ADVANCED"
+    default: "ADVANCED"
+    # CORE = Basic features, cheapest
+    # PRO = Enhanced features
+    # ADVANCED = All features including serverless, most expensive
+
+  dlt_channel:
+    description: "DLT release channel: CURRENT or PREVIEW"
+    default: "CURRENT"  # Use PREVIEW for latest features (may be unstable)
+
+  dlt_continuous:
+    description: "Run DLT in continuous mode (always on)"
+    default: "false"  # Set to "true" for real-time processing
+
+  dlt_development:
+    description: "Enable DLT development mode (faster iterations)"
+    default: "true"  # Set to "false" for production
+
+  # ----------------------------------------------------------------------------
+  # WORKFLOW CONFIGURATION
+  # ----------------------------------------------------------------------------
+  workflow_name:
+    description: "Name of the workflow job"
+    default: "NYC Taxi Data Pipeline"  # 📝 CHANGE THIS: Your workflow name
+
+  workflow_schedule_enabled:
+    description: "Enable workflow schedules"
+    default: "false"  # Set to "true" to enable automatic scheduling
+
+  workflow_cron_schedule:
+    description: "Cron expression for workflow schedule"
+    default: "0 0 1 * * ?"  # Daily at 1 AM UTC
+    # Examples:
+    # "0 0 1 * * ?" = Daily at 1 AM
+    # "0 0 */6 * * ?" = Every 6 hours
+    # "0 0 9 * * MON-FRI" = Weekdays at 9 AM
+
+  # ----------------------------------------------------------------------------
+  # COMPUTE CONFIGURATION
+  # ----------------------------------------------------------------------------
+  spark_version:
+    description: "Databricks runtime version"
+    default: "13.3.x-scala2.12"  # 📝 CHANGE THIS: Latest stable version
+
+  # ----------------------------------------------------------------------------
+  # ENVIRONMENT SUFFIX - For feature branch deployments
+  # ----------------------------------------------------------------------------
   environment_suffix:
-    description: "Environment suffix for feature branches"
+    description: "Environment suffix for feature branches (e.g., '_feature_123')"
     default: ""
 
-  # New DLT-specific variables
-  dlt_target_catalog:
-    description: "Target catalog for DLT pipeline"
-    default: "main"  # Use Unity Catalog, not hive_metastore
-
-  dlt_target_schema:
-    description: "Target schema for DLT pipeline"
-    default: "nyc_taxi_dlt"
+# ============================================================================
+# ENVIRONMENT CONFIGURATIONS
+# ============================================================================
+# Each environment can override the variables above
+# ============================================================================
 
 environments:
+  # ----------------------------------------------------------------------------
+  # DEVELOPMENT ENVIRONMENT
+  # ----------------------------------------------------------------------------
   dev:
     default: true
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
+
     variables:
-      dlt_target_schema: nyc_taxi_dlt${var.environment_suffix}
+      # Override catalog/schema for dev
+      catalog_name: "dev_catalog"  # 📝 CHANGE THIS: Your dev catalog
+      schema_name: "${var.project_name}${var.environment_suffix}"
+
+      # Dev-specific settings
+      dlt_development: "true"
+      dlt_continuous: "false"
+      dlt_edition: "CORE"  # Use cheaper edition for dev
+      workflow_schedule_enabled: "false"
+
+  # ----------------------------------------------------------------------------
+  # STAGING ENVIRONMENT
+  # ----------------------------------------------------------------------------
+  staging:
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/staging
+
+    variables:
+      # Override catalog/schema for staging
+      catalog_name: "staging_catalog"  # 📝 CHANGE THIS: Your staging catalog
+      schema_name: "${var.project_name}"
+
+      # Staging-specific settings
+      dlt_development: "false"
+      dlt_continuous: "false"
+      dlt_edition: "ADVANCED"
+      workflow_schedule_enabled: "true"
+
+  # ----------------------------------------------------------------------------
+  # PRODUCTION ENVIRONMENT
+  # ----------------------------------------------------------------------------
+  prod:
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/prod
+
+    variables:
+      # Override catalog/schema for prod
+      catalog_name: "prod_catalog"  # 📝 CHANGE THIS: Your prod catalog
+      schema_name: "${var.project_name}"
+
+      # Production-specific settings
+      dlt_development: "false"
+      dlt_continuous: "true"  # Always running in prod
+      dlt_edition: "ADVANCED"
+      workflow_schedule_enabled: "true"
+      deploy_dlt_runner: "false"  # Use continuous mode instead
+
+# ============================================================================
+# RESOURCE DEFINITIONS
+# ============================================================================
+# These use the variables defined above - no hardcoded values!
+# ============================================================================
 
 resources:
-  # NEW DLT PIPELINE - Using regular clusters (works without Unity Catalog)
+  # ----------------------------------------------------------------------------
+  # DLT PIPELINE - Uses serverless compute with Unity Catalog
+  # ----------------------------------------------------------------------------
   pipelines:
     nyc_taxi_dlt_pipeline:
-      name: "NYC Taxi DLT Pipeline${var.environment_suffix}"
+      # Conditional deployment based on deploy_dlt variable
+      if: ${var.deploy_dlt} == "true"
 
-      # DLT Configuration - back to hive_metastore for compatibility
-      target: "hive_metastore.${var.dlt_target_schema}${var.environment_suffix}"
+      name: "${var.dlt_pipeline_name}${var.environment_suffix}"
 
-      # Regular cluster configuration (no serverless requirements)
-      clusters:
-        - label: "default"
-          spark_conf:
-            "spark.databricks.cluster.profile": "singleNode"
-            "spark.master": "local[*]"
-          node_type_id: "Standard_DS4_v2"  # Smaller, more available VM
-          spark_version: "13.3.x-scala2.12"
-          num_workers: 0  # Single node
-          data_security_mode: "SINGLE_USER"
-          custom_tags:
-            environment: "${var.environment_suffix}"
-            pipeline_type: "dlt"
-            cost_center: "data_engineering"
-            ResourceClass: "SingleNode"
+      # Unity Catalog target - Uses variables, not hardcoded!
+      target: "${var.catalog_name}.${var.schema_name}"
 
-      # Pipeline configuration
+      # SERVERLESS - No cluster configuration needed
+      serverless: true
+
+      # Pipeline configuration - All values from variables
       configuration:
-        "source_path": "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
-        "environment_suffix": "${var.environment_suffix}"
-        "pipeline_mode": "development"
+        source_path: "${var.source_data_path}"
+        environment_suffix: "${var.environment_suffix}"
+        pipeline_mode: "${{var.dlt_development == 'true' ? 'development' : 'production'}}"
+        catalog_name: "${var.catalog_name}"
+        schema_name: "${var.schema_name}"
+        project_name: "${var.project_name}"
 
-      # Libraries - DLT pipeline code
+      # DLT pipeline code libraries
+      # 📝 UPDATE THESE PATHS: Point to your DLT files
       libraries:
         - file:
             path: ./src/dlt/nyc_taxi_dlt_bronze.py
         - file:
             path: ./src/dlt/nyc_taxi_dlt_silver.py
+        - file:
+            path: ./src/dlt/nyc_taxi_dlt_gold.py
 
-      # Enable expectations and data quality
-      development: true
+      # Settings from variables
+      development: ${var.dlt_development}
+      channel: ${var.dlt_channel}
+      edition: ${var.dlt_edition}
+      continuous: ${var.dlt_continuous}
+      photon: true
+      catalog: ${var.catalog_name}
 
-      # Channel for DLT runtime
-      channel: "CURRENT"
-
-      # Edition - CORE works with regular clusters
-      edition: "CORE"
-
-      # Continuous vs triggered
-      continuous: false
-
-      # Notifications (optional)
+      # Notifications
       notifications:
         - email_recipients:
-            - "data-engineering@company.com"  # Replace with your email
+            - ${var.notification_email}
           alerts:
             - "on-update-failure"
             - "on-flow-failure"
 
-  # JOBS SECTION - Both legacy and DLT runner
+  # ----------------------------------------------------------------------------
+  # WORKFLOW JOBS - Uses serverless compute
+  # ----------------------------------------------------------------------------
   jobs:
-    # EXISTING JOB - Simplified, focused on bronze ingestion
+    # Legacy job - Your existing workflow
     nyc_taxi_pipeline:
-      name: NYC Taxi Data Pipeline
+      if: ${var.deploy_workflow} == "true"
+
+      name: "${var.workflow_name}${var.environment_suffix}"
+
       tasks:
         - task_key: bronze_ingestion
-          new_cluster:
-            spark_version: 13.3.x-scala2.12
-            node_type_id: Standard_DS3_v2  # More commonly available VM size
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: local[*]
-            custom_tags:
-              ResourceClass: SingleNode
-            data_security_mode: SINGLE_USER
-            runtime_engine: PHOTON
+          # 📝 UPDATE THIS: Point to your job script
           spark_python_task:
             python_file: ./src/jobs/bronze_ingestion.py
-          timeout_seconds: 3600
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--source-path"
+              - "${var.source_data_path}"
 
-    # OPTIONAL: DLT Job Runner - For CI/CD integration
+          timeout_seconds: 3600
+          job_cluster_key: serverless_cluster
+
+      # Serverless cluster definition
+      job_clusters:
+        - job_cluster_key: serverless_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            data_security_mode: USER_ISOLATION
+            runtime_engine: PHOTON
+            spark_conf:
+              spark.databricks.cluster.profile: serverless
+              spark.databricks.unityCatalog.enabled: "true"
+            custom_tags:
+              environment: "${var.environment_suffix}"
+              project: "${var.project_name}"
+              cost_center: "data_engineering"
+
+      # Schedule configuration
+      schedule:
+        quartz_cron_expression: "${var.workflow_cron_schedule}"
+        timezone_id: "UTC"
+        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
+
+      # Notifications
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    # DLT Runner Job - Triggers DLT pipeline
     run_dlt_pipeline:
+      if: ${var.deploy_dlt} == "true" && ${var.deploy_dlt_runner} == "true"
+
       name: "DLT Pipeline Runner${var.environment_suffix}"
 
       tasks:
         - task_key: trigger_dlt_pipeline
           pipeline_task:
             pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
-            full_refresh: false  # Set to true for complete refresh
+            full_refresh: false
 
-          timeout_seconds: 7200  # 2 hours timeout
+          timeout_seconds: 7200
 
-      # Run on a schedule (optional)
       schedule:
         quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
         timezone_id: "UTC"
-        pause_status: "PAUSED"  # Start paused, enable manually
+        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
 
-      # Email notifications
       email_notifications:
         on_failure:
-          - "data-engineering@company.com"  # Replace with your email
+          - ${var.notification_email}
+        on_success:
+          - ${var.notification_email}
 
-#bundle:
-#  name: test-deployment
-#
-#variables:
-#  environment_suffix:
-#    description: "Environment suffix for feature branches"
-#    default: ""
-#
-#  # New DLT-specific variables
-#  dlt_target_catalog:
-#    description: "Target catalog for DLT pipeline"
-#    default: "hive_metastore"
-#
-#  dlt_target_schema:
-#    description: "Target schema for DLT pipeline"
-#    default: "nyc_taxi_dlt"
-#
-#environments:
-#  dev:
-#    default: true
-#    workspace:
-#      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
-#    variables:
-#      dlt_target_schema: "nyc_taxi_dlt${var.environment_suffix}"
-#
-#resources:
-#  # NEW DLT PIPELINE - Running in parallel
-#  pipelines:
-#    nyc_taxi_dlt_pipeline:
-#      name: "NYC Taxi DLT Pipeline${var.environment_suffix}"
-#
-#      # DLT Configuration
-#      target: "${var.dlt_target_catalog}.${var.dlt_target_schema}"
-#
-#      # Compute configuration - separate from job resources
-#      clusters:
-#        - label: "default"
-#          autoscale:
-#            min_workers: 0
-#            max_workers: 2
-#          node_type_id: "Standard_D4s_v3"
-#          spark_version: "13.3.x-scala2.12"
-#          spark_conf:
-#            "spark.databricks.cluster.profile": "singleNode"
-#          custom_tags:
-#            environment: "${var.environment_suffix}"
-#            pipeline_type: "dlt"
-#            cost_center: "data_engineering"
-#
-#      # Pipeline configuration
-#      configuration:
-#        "source_path": "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
-#        "environment_suffix": "${var.environment_suffix}"
-#        "pipeline_mode": "development"  # Use 'production' for main branch
-#
-#      # Libraries - DLT pipeline code
-#      libraries:
-#        - file:
-#            path: ./src/dlt/nyc_taxi_dlt_bronze.py
-#        - file:
-#            path: ./src/dlt/nyc_taxi_dlt_silver.py
-#
-#      # Enable expectations and data quality
-#      development: true
-#
-#      # Channel for DLT runtime
-#      channel: "CURRENT"
-#
-#      # Edition
-#      edition: "CORE"  # Use CORE for cost optimization, PRO for advanced features
-#
-#      # Continuous vs triggered
-#      continuous: false  # Set to true for real-time processing
-#
-#      # Notifications (optional)
-#      notifications:
-#        - email_recipients:
-#            - "data-engineering@company.com"  # Replace with your email
-#          alerts:
-#            - "on-update-failure"
-#            - "on-flow-failure"
-#
-#  # JOBS SECTION - Both legacy and DLT runner
-#  jobs:
-#    # EXISTING JOB - Simplified, focused on bronze ingestion
-#    nyc_taxi_pipeline:
-#      name: NYC Taxi Data Pipeline
-#      tasks:
-#        - task_key: bronze_ingestion
-#          new_cluster:
-#            spark_version: 13.3.x-scala2.12
-#            node_type_id: Standard_D4s_v3
-#            num_workers: 0
-#            spark_conf:
-#              spark.databricks.cluster.profile: singleNode
-#              spark.master: local[*]
-#            custom_tags:
-#              ResourceClass: SingleNode
-#            data_security_mode: SINGLE_USER
-#            runtime_engine: PHOTON
-#          spark_python_task:
-#            python_file: ./src/jobs/bronze_ingestion.py
-#          timeout_seconds: 3600
-#
-#    # OPTIONAL: DLT Job Runner - For CI/CD integration
-#    run_dlt_pipeline:
-#      name: "DLT Pipeline Runner${var.environment_suffix}"
-#
-#      tasks:
-#        - task_key: trigger_dlt_pipeline
-#          pipeline_task:
-#            pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
-#            full_refresh: false  # Set to true for complete refresh
-#
-#          timeout_seconds: 7200  # 2 hours timeout
-#
-#      # Run on a schedule (optional)
-#      schedule:
-#        quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
-#        timezone_id: "UTC"
-#        pause_status: "PAUSED"  # Start paused, enable manually
-#
-#      # Email notifications
-#      email_notifications:
-#        on_failure:
-#          - "data-engineering@company.com"  # Replace with your email
+    # Combined workflow - DLT + downstream processing
+    nyc_taxi_full_pipeline:
+      if: ${var.deploy_dlt} == "true" && ${var.deploy_workflow} == "true"
 
+      name: "Full Pipeline${var.environment_suffix}"
 
-#bundle:
-#  name: test-deployment
-#
-#variables:
-#  environment_suffix:
-#    description: "Environment suffix for feature branches"
-#    default: ""
-#
-#environments:
-#  dev:
-#    default: true
-#    workspace:
-#      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
-#
-#resources:
-#  jobs:
-#    nyc_taxi_pipeline:
-#      name: NYC Taxi Data Pipeline
-#      tasks:
-#        - task_key: hello_check
-#          new_cluster:
-#            spark_version: 13.3.x-scala2.12
-#            node_type_id: Standard_D4s_v3
-#            num_workers: 0
-#            spark_conf:
-#              spark.databricks.cluster.profile: singleNode
-#              spark.master: local[*]
-#            custom_tags:
-#              ResourceClass: SingleNode
-#            # Enable Unity Catalog on cluster
-#            data_security_mode: SINGLE_USER
-#            runtime_engine: PHOTON
-#          spark_python_task:
-#            python_file: ./src/hello_databricks.py
-#
-#        - task_key: bronze_ingestion
-#          depends_on:
-#            - task_key: hello_check
-#          new_cluster:
-#            spark_version: 13.3.x-scala2.12
-#            node_type_id: Standard_D4s_v3
-#            num_workers: 0
-#            spark_conf:
-#              spark.databricks.cluster.profile: singleNode
-#              spark.master: local[*]
-#            custom_tags:
-#              ResourceClass: SingleNode
-#            # Enable Unity Catalog on cluster
-#            data_security_mode: SINGLE_USER
-#            runtime_engine: PHOTON
-#          spark_python_task:
-#            python_file: ./src/jobs/bronze_ingestion.py
-#          timeout_seconds: 3600
+      tasks:
+        # Task 1: Run DLT
+        - task_key: run_dlt
+          pipeline_task:
+            pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
+            full_refresh: false
+          timeout_seconds: 7200
+
+        # Task 2: Post-DLT processing
+        - task_key: post_dlt_processing
+          depends_on:
+            - task_key: run_dlt
+
+          spark_python_task:
+            # 📝 UPDATE THIS: Point to your post-processing script
+            python_file: ./src/jobs/post_dlt_processing.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+
+          job_cluster_key: serverless_cluster
+          timeout_seconds: 3600
+
+        # Task 3: Data quality checks
+        - task_key: data_quality_checks
+          depends_on:
+            - task_key: post_dlt_processing
+
+          notebook_task:
+            # 📝 UPDATE THIS: Point to your quality check notebook
+            notebook_path: ./src/notebooks/data_quality_checks
+            base_parameters:
+              catalog: ${var.catalog_name}
+              schema: ${var.schema_name}
+
+          job_cluster_key: serverless_cluster
+          timeout_seconds: 1800
+
+      job_clusters:
+        - job_cluster_key: serverless_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            data_security_mode: USER_ISOLATION
+            runtime_engine: PHOTON
+            spark_conf:
+              spark.databricks.cluster.profile: serverless
+              spark.databricks.unityCatalog.enabled: "true"
+
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?"
+        timezone_id: "UTC"
+        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+  # ----------------------------------------------------------------------------
+  # PERMISSIONS (Optional)
+  # ----------------------------------------------------------------------------
+  permissions:
+    pipeline_nyc_taxi_dlt:
+      if: ${var.deploy_dlt} == "true"
+      pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
+      access_control:
+        - group_name: "data_engineers"  # 📝 CHANGE THIS: Your group name
+          permission_level: "CAN_MANAGE"
+        - group_name: "data_analysts"  # 📝 CHANGE THIS: Your group name
+          permission_level: "CAN_VIEW"
+
+    job_nyc_taxi_pipeline:
+      if: ${var.deploy_workflow} == "true"
+      job_id: "${resources.jobs.nyc_taxi_pipeline.id}"
+      access_control:
+        - group_name: "data_engineers"
+          permission_level: "CAN_MANAGE"
+        - group_name: "data_analysts"
+          permission_level: "CAN_VIEW"

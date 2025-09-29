@@ -1,167 +1,232 @@
 """
-NYC Taxi DLT Bronze Pipeline
-DLT implementation of the bronze ingestion layer with enhanced capabilities
-
-Key DLT Benefits:
-- Parallel execution with existing job workflow
-- Built-in data lineage and quality monitoring
-- Automatic schema evolution and conflict resolution
-- Resource isolation and auto-scaling
-- Built-in retry and error handling
+NYC Taxi DLT Pipeline - Bronze Layer
+Unity Catalog Compatible with Serverless Compute
 """
-
 import dlt
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    current_timestamp,
-    lit,
-    col,
-    when,
-    to_timestamp,
-    year,
-    month,
-    dayofmonth,
-    regexp_replace
-)
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType
+from pyspark.sql import functions as F
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
 
-# DLT Configuration - get from pipeline configuration
-source_path = spark.conf.get("source_path",
-                             "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz")
-environment_suffix = spark.conf.get("environment_suffix", "")
 
+# Get configuration from DLT pipeline settings
+def get_config(key, default=None):
+    """Safely get configuration from Spark conf"""
+    try:
+        return spark.conf.get(key, default)
+    except Exception:
+        return default
+
+
+# Configuration
+SOURCE_PATH = get_config("source_path", "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz")
+CATALOG = get_config("catalog_name", "dev_catalog")
+SCHEMA = get_config("schema_name", "nyc_taxi_dev")
+ENVIRONMENT = get_config("environment_suffix", "")
+
+# Define schema for NYC taxi data
+taxi_schema = StructType([
+    StructField("VendorID", IntegerType(), True),
+    StructField("tpep_pickup_datetime", TimestampType(), True),
+    StructField("tpep_dropoff_datetime", TimestampType(), True),
+    StructField("passenger_count", IntegerType(), True),
+    StructField("trip_distance", DoubleType(), True),
+    StructField("RatecodeID", IntegerType(), True),
+    StructField("store_and_fwd_flag", StringType(), True),
+    StructField("PULocationID", IntegerType(), True),
+    StructField("DOLocationID", IntegerType(), True),
+    StructField("payment_type", IntegerType(), True),
+    StructField("fare_amount", DoubleType(), True),
+    StructField("extra", DoubleType(), True),
+    StructField("mta_tax", DoubleType(), True),
+    StructField("tip_amount", DoubleType(), True),
+    StructField("tolls_amount", DoubleType(), True),
+    StructField("improvement_surcharge", DoubleType(), True),
+    StructField("total_amount", DoubleType(), True)
+])
+
+
+# ============================================================================
+# BRONZE LAYER - Raw Data Ingestion
+# ============================================================================
 
 @dlt.table(
-    name="nyc_taxi_raw",
-    comment="Raw NYC taxi data ingested from source files",
+    name="bronze_taxi_raw",
+    comment="Raw NYC taxi trip data ingested from CSV - Bronze layer",
     table_properties={
         "quality": "bronze",
-        "layer": "raw",
-        "pipelines.autoOptimize.managed": "true"
+        "pipelines.autoOptimize.managed": "true",
+        "delta.enableChangeDataFeed": "true"
     }
 )
-def raw_taxi_data():
+@dlt.expect_all_or_drop({
+    "valid_vendor": "VendorID IS NOT NULL",
+    "valid_pickup_time": "tpep_pickup_datetime IS NOT NULL",
+    "valid_dropoff_time": "tpep_dropoff_datetime IS NOT NULL"
+})
+def bronze_taxi_raw():
     """
-    Raw data ingestion - exact copy of source data
-    DLT automatically handles schema inference and evolution
+    Ingest raw taxi data from CSV with data quality expectations.
+    Drops rows that don't meet basic quality standards.
+
+    Target: {CATALOG}.{SCHEMA}.bronze_taxi_raw
     """
     return (
         spark.read
+        .format("csv")
         .option("header", "true")
         .option("inferSchema", "true")
-        .csv(source_path)
-        .withColumn("ingestion_timestamp", current_timestamp())
-        .withColumn("data_source", lit("nyc_taxi_public"))
-        .withColumn("environment", lit(environment_suffix))
+        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")
+        .schema(taxi_schema)
+        .load(SOURCE_PATH)
+        .withColumn("ingestion_timestamp", F.current_timestamp())
+        .withColumn("source_file", F.input_file_name())
+        .withColumn("environment", F.lit(ENVIRONMENT))
     )
 
 
+# ============================================================================
+# BRONZE LAYER - Enriched with Metadata
+# ============================================================================
+
 @dlt.table(
-    name="nyc_taxi_bronze",
-    comment="Cleaned and validated NYC taxi data with quality metrics",
+    name="bronze_taxi_enriched",
+    comment="Bronze taxi data enriched with computed columns and metadata",
     table_properties={
         "quality": "bronze",
-        "layer": "cleaned",
         "pipelines.autoOptimize.managed": "true"
     }
 )
 @dlt.expect_all({
-    "valid_pickup_datetime": "pickup_datetime IS NOT NULL",
-    "valid_total_amount": "total_amount IS NOT NULL AND total_amount >= 0",
-    "valid_trip_distance": "trip_distance IS NOT NULL AND trip_distance >= 0",
-    "valid_passenger_count": "passenger_count_clean IS NOT NULL AND passenger_count_clean > 0"
+    "positive_trip_distance": "trip_distance > 0",
+    "positive_passenger_count": "passenger_count > 0",
+    "valid_fare": "fare_amount >= 0",
+    "valid_trip_duration": "trip_duration_minutes > 0"
 })
-def bronze_taxi_data():
+def bronze_taxi_enriched():
     """
-    Bronze layer with data cleaning and quality expectations
-    DLT automatically tracks data quality and lineage
+    Enriched bronze layer with additional computed columns.
+    Adds data quality warnings but keeps all records.
+
+    Target: {CATALOG}.{SCHEMA}.bronze_taxi_enriched
     """
-    raw_df = dlt.read("nyc_taxi_raw")
+    # Read from bronze_taxi_raw using Unity Catalog path
+    df = dlt.read("bronze_taxi_raw")
 
     return (
-        raw_df
-        # Convert string timestamps to proper timestamp type
+        df
+        # Calculate trip duration
         .withColumn(
-            "pickup_datetime",
-            to_timestamp(col("tpep_pickup_datetime"), "yyyy-MM-dd HH:mm:ss")
+            "trip_duration_minutes",
+            (F.col("tpep_dropoff_datetime").cast("long") -
+             F.col("tpep_pickup_datetime").cast("long")) / 60
         )
+        # Calculate average speed
         .withColumn(
-            "dropoff_datetime",
-            to_timestamp(col("tpep_dropoff_datetime"), "yyyy-MM-dd HH:mm:ss")
+            "avg_speed_mph",
+            F.when(
+                F.col("trip_duration_minutes") > 0,
+                F.col("trip_distance") / (F.col("trip_duration_minutes") / 60)
+            ).otherwise(0)
         )
-
-        # Add date partitioning columns
-        .withColumn("pickup_year", year(col("pickup_datetime")))
-        .withColumn("pickup_month", month(col("pickup_datetime")))
-        .withColumn("pickup_day", dayofmonth(col("pickup_datetime")))
-
-        # Clean passenger count
+        # Extract date components
+        .withColumn("pickup_date", F.to_date("tpep_pickup_datetime"))
+        .withColumn("pickup_hour", F.hour("tpep_pickup_datetime"))
+        .withColumn("pickup_day_of_week", F.dayofweek("tpep_pickup_datetime"))
+        # Add data quality flags
         .withColumn(
-            "passenger_count_clean",
-            when(
-                col("passenger_count").isNull() | (col("passenger_count") <= 0), 1
-            ).otherwise(col("passenger_count"))
+            "is_suspicious",
+            F.when(
+                (F.col("trip_distance") > 100) |
+                (F.col("trip_duration_minutes") > 180) |
+                (F.col("avg_speed_mph") > 100) |
+                (F.col("passenger_count") > 6),
+                F.lit(True)
+            ).otherwise(F.lit(False))
         )
-
-        # Data quality flags
-        .withColumn(
-            "data_quality_flag",
-            when(
-                (col("trip_distance") <= 0) |
-                (col("total_amount") <= 0) |
-                (col("pickup_datetime").isNull()),
-                "SUSPICIOUS"
-            ).otherwise("CLEAN")
-        )
-
-        # Add DLT-specific metadata
-        .withColumn("pipeline_stage", lit("bronze"))
-        .withColumn("data_classification", lit("public"))
-        .withColumn("business_domain", lit("transportation"))
-        .withColumn("dlt_pipeline_id", lit("${resources.pipelines.nyc_taxi_dlt_pipeline.id}"))
-        .withColumn("processing_date", col("ingestion_timestamp").cast("date"))
+        # Add processing metadata
+        .withColumn("bronze_processed_timestamp", F.current_timestamp())
     )
 
 
-# DLT Data Quality Monitoring Table
-@dlt.table(
-    name="nyc_taxi_bronze_quality_metrics",
-    comment="Data quality metrics and monitoring for bronze layer"
+# ============================================================================
+# BRONZE LAYER - Streaming View (Optional)
+# ============================================================================
+
+@dlt.view(
+    name="bronze_taxi_streaming",
+    comment="Streaming view of bronze taxi data for real-time processing"
 )
-def bronze_quality_metrics():
+def bronze_taxi_streaming():
     """
-    Data quality monitoring table
-    Tracks quality metrics over time for monitoring and alerting
+    Streaming view for continuous ingestion scenarios.
+    Can be used for real-time dashboards or downstream streaming tables.
     """
-    bronze_df = dlt.read("nyc_taxi_bronze")
+    return (
+        spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.format", "csv")
+        .option("header", "true")
+        .option("inferSchema", "true")
+        .schema(taxi_schema)
+        .load(SOURCE_PATH.replace(".csv.gz", ""))  # Point to directory for streaming
+        .withColumn("ingestion_timestamp", F.current_timestamp())
+    )
+
+
+# ============================================================================
+# DATA QUALITY METRICS TABLE
+# ============================================================================
+
+@dlt.table(
+    name="bronze_data_quality_metrics",
+    comment="Data quality metrics for bronze layer monitoring",
+    table_properties={
+        "quality": "metrics"
+    }
+)
+def bronze_data_quality_metrics():
+    """
+    Aggregate data quality metrics for monitoring and alerting.
+
+    Target: {CATALOG}.{SCHEMA}.bronze_data_quality_metrics
+    """
+    df = dlt.read("bronze_taxi_enriched")
 
     return (
-        bronze_df
-        .groupBy("processing_date", "data_quality_flag")
+        df
+        .groupBy("pickup_date")
         .agg(
-            count("*").alias("record_count"),
-            avg("total_amount").alias("avg_fare"),
-            avg("trip_distance").alias("avg_distance"),
-            max("ingestion_timestamp").alias("latest_ingestion")
+            F.count("*").alias("total_records"),
+            F.sum(F.when(F.col("is_suspicious"), 1).otherwise(0)).alias("suspicious_records"),
+            F.avg("trip_distance").alias("avg_trip_distance"),
+            F.avg("trip_duration_minutes").alias("avg_trip_duration"),
+            F.avg("fare_amount").alias("avg_fare_amount"),
+            F.min("tpep_pickup_datetime").alias("earliest_pickup"),
+            F.max("tpep_pickup_datetime").alias("latest_pickup"),
+            F.current_timestamp().alias("metric_timestamp")
         )
-        .withColumn("quality_check_timestamp", current_timestamp())
-        .withColumn("environment", lit(environment_suffix))
+        .withColumn(
+            "data_quality_score",
+            F.round(
+                (1 - (F.col("suspicious_records") / F.col("total_records"))) * 100,
+                2
+            )
+        )
     )
 
 
-# OPTIONAL: Quarantine table for suspicious records
-@dlt.table(
-    name="nyc_taxi_bronze_quarantine",
-    comment="Quarantined records that failed quality checks"
-)
-def bronze_quarantine():
-    """
-    Quarantine suspicious records for investigation
-    Keeps bad data for analysis without affecting downstream processing
-    """
-    return (
-        dlt.read("nyc_taxi_bronze")
-        .filter(col("data_quality_flag") == "SUSPICIOUS")
-        .withColumn("quarantine_reason", lit("Failed bronze quality checks"))
-        .withColumn("quarantine_timestamp", current_timestamp())
-    )
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_bronze_table_path(table_name):
+    """Helper function to get full Unity Catalog path for bronze tables"""
+    return f"{CATALOG}.{SCHEMA}.{table_name}"
+
+
+# Print configuration for debugging (visible in DLT logs)
+print(f"DLT Bronze Layer Configuration:")
+print(f"  Catalog: {CATALOG}")
+print(f"  Schema: {SCHEMA}")
+print(f"  Source Path: {SOURCE_PATH}")
+print(f"  Environment: {ENVIRONMENT}")
+print(f"  Full table path example: {get_bronze_table_path('bronze_taxi_raw')}")
