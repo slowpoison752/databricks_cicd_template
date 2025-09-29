@@ -276,15 +276,18 @@ resources:
           timeout_seconds: 3600
           job_cluster_key: serverless_cluster
 
-      # Serverless cluster definition
+      # Job cluster definition
       job_clusters:
         - job_cluster_key: serverless_cluster
           new_cluster:
             spark_version: ${var.spark_version}
-            data_security_mode: USER_ISOLATION
+            node_type_id: "Standard_DS3_v2"  # Small node
+            num_workers: 0  # Single node
+            data_security_mode: SINGLE_USER
             runtime_engine: PHOTON
             spark_conf:
-              spark.databricks.cluster.profile: serverless
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
               spark.databricks.unityCatalog.enabled: "true"
             custom_tags:
               environment: "${var.environment_suffix}"
