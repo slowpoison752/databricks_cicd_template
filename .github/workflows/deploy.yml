@@ -52,9 +52,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
   # ===========================================================================
   # DEPLOY DEV - Feature branches (DLT only) and develop (full)
@@ -116,9 +116,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Deploy Full Stack (Develop/Master)
         if: steps.branch.outputs.is_feature == 'false'
@@ -134,9 +134,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Get Deployment Summary
         id: summary
@@ -147,9 +147,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
         continue-on-error: true
 
       - name: Comment on PR (if applicable)
@@ -213,9 +213,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_STAGING_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Run Integration Tests
         run: |
@@ -235,9 +235,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_STAGING_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
         continue-on-error: true
 
   # ===========================================================================
@@ -269,9 +269,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
         continue-on-error: true
 
       - name: Deploy to Production
@@ -284,9 +284,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Verify Deployment
         run: |
@@ -295,9 +295,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Create GitHub Release (Optional)
         if: github.event_name == 'push'
@@ -352,9 +352,9 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
   # ===========================================================================
   # CLEANUP - Remove feature branch deployments
@@ -395,7 +395,7 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_AUTH_TYPE: azure-client-secret
-          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
-          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
         continue-on-error: true
