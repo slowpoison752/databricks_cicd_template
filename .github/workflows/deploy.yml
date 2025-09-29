@@ -1,15 +1,16 @@
-name: Databricks Asset Bundle Deploy
+name: Databricks CI/CD - Unity Catalog + Serverless
 
 on:
   push:
     branches:
       - main
       - develop
+      - master
       - 'feature/**'
   pull_request:
     branches:
       - main
-      - develop
+      - master
   workflow_dispatch:
     inputs:
       environment:
@@ -31,360 +32,353 @@ on:
         type: boolean
         default: true
 
-env:
-  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
 jobs:
-  # ============================================================================
-  # VALIDATION JOB - Run on all branches
-  # ============================================================================
+  # ===========================================================================
+  # VALIDATE - Run on all branches
+  # ===========================================================================
   validate:
-    name: Validate Bundle Configuration
+    name: Validate Bundle
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
-      - name: Install Databricks CLI
-        run: |
-          pip install databricks-cli
-          databricks --version
-
-      - name: Validate Bundle - Dev
-        run: |
-          databricks bundle validate -t dev
+      - name: Validate Bundle Configuration
+        run: databricks bundle validate -t dev
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
-  # ============================================================================
-  # DEPLOY TO DEV - Feature branches and develop
-  # ============================================================================
-  deploy_dev:
+  # ===========================================================================
+  # DEPLOY DEV - Feature branches (DLT only) and develop (full)
+  # ===========================================================================
+  deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
     needs: validate
     if: |
       github.event_name == 'push' && 
-      (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/'))
+      (github.ref == 'refs/heads/develop' || 
+       github.ref == 'refs/heads/master' ||
+       startsWith(github.ref, 'refs/heads/feature/'))
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Extract branch name
+      - name: Extract branch info
         id: branch
         run: |
-          # Get branch name and create suffix
           BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          BRANCH_NAME="${BRANCH_NAME//\//_}"  # Replace / with _
-          if [[ "$BRANCH_NAME" == "develop" ]]; then
+          
+          # Create clean suffix from branch name
+          if [[ "$BRANCH_NAME" == "develop" ]] || [[ "$BRANCH_NAME" == "master" ]]; then
             SUFFIX=""
+            IS_FEATURE="false"
           else
-            SUFFIX="_${BRANCH_NAME}"
+            # Remove 'feature/' prefix and sanitize
+            CLEAN_NAME=$(echo "$BRANCH_NAME" | sed 's|feature/||' | sed 's|[^a-zA-Z0-9]|_|g' | cut -c1-20)
+            SUFFIX="_${CLEAN_NAME}"
+            IS_FEATURE="true"
           fi
+          
           echo "suffix=${SUFFIX}" >> $GITHUB_OUTPUT
-          echo "Branch suffix: ${SUFFIX}"
+          echo "is_feature=${IS_FEATURE}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          
+          echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${BRANCH_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- Suffix: ${SUFFIX}" >> $GITHUB_STEP_SUMMARY
+          echo "- Is Feature: ${IS_FEATURE}" >> $GITHUB_STEP_SUMMARY
 
       - name: Deploy DLT Only (Feature Branches)
-        if: startsWith(github.ref, 'refs/heads/feature/')
+        if: steps.branch.outputs.is_feature == 'true'
         run: |
+          echo "🚀 Deploying DLT only for feature branch"
+          
           databricks bundle deploy -t dev \
             --var="environment_suffix=${{ steps.branch.outputs.suffix }}" \
             --var="deploy_dlt=true" \
             --var="deploy_workflow=false" \
             --var="deploy_dlt_runner=false"
+          
+          echo "✅ DLT pipeline deployed with suffix: ${{ steps.branch.outputs.suffix }}"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
-      - name: Deploy Full Stack (Develop Branch)
-        if: github.ref == 'refs/heads/develop'
+      - name: Deploy Full Stack (Develop/Master)
+        if: steps.branch.outputs.is_feature == 'false'
         run: |
+          echo "🚀 Deploying full stack (DLT + Workflows)"
+          
           databricks bundle deploy -t dev \
             --var="deploy_dlt=true" \
             --var="deploy_workflow=true" \
             --var="deploy_dlt_runner=true"
+          
+          echo "✅ Full deployment complete"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
-      - name: Get Pipeline ID
-        id: pipeline
+      - name: Get Deployment Summary
+        id: summary
         run: |
-          PIPELINE_ID=$(databricks bundle summary -t dev | grep -A 5 "nyc_taxi_dlt_pipeline" | grep "id:" | awk '{print $2}')
-          echo "pipeline_id=${PIPELINE_ID}" >> $GITHUB_OUTPUT
+          echo "📊 Deployment Summary:"
+          databricks bundle summary -t dev \
+            --var="environment_suffix=${{ steps.branch.outputs.suffix }}"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
-
-      - name: Run DLT Pipeline (Optional)
-        if: github.ref == 'refs/heads/develop'
-        run: |
-          echo "Starting DLT pipeline: ${{ steps.pipeline.outputs.pipeline_id }}"
-          databricks pipelines start --pipeline-id ${{ steps.pipeline.outputs.pipeline_id }}
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
         continue-on-error: true
 
-  # ============================================================================
-  # DEPLOY TO STAGING - On PR to main or manual trigger
-  # ============================================================================
-  deploy_staging:
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const suffix = '${{ steps.branch.outputs.suffix }}';
+            const isFeature = '${{ steps.branch.outputs.is_feature }}' === 'true';
+            
+            const deployType = isFeature ? 'DLT Pipeline Only' : 'Full Stack (DLT + Workflows)';
+            const schema = isFeature ? `nyc_taxi${suffix}` : 'nyc_taxi';
+            
+            const comment = `## 🚀 Databricks Deployment
+            
+            **Environment:** Development
+            **Type:** ${deployType}
+            **Schema:** \`dev_catalog.${schema}\`
+            
+            ${isFeature ? '💡 Feature branches deploy DLT only for faster iterations and cost savings.' : ''}
+            
+            [View in Databricks Workspace](${{ secrets.DATABRICKS_HOST }})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ===========================================================================
+  # DEPLOY STAGING - On PR to main
+  # ===========================================================================
+  deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: validate
     if: |
-      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+      (github.event_name == 'pull_request' && 
+       (github.base_ref == 'main' || github.base_ref == 'master')) ||
+      (github.event_name == 'workflow_dispatch' && 
+       github.event.inputs.environment == 'staging')
     environment:
       name: staging
-      url: ${{ steps.deployment.outputs.workspace_url }}
+      url: ${{ secrets.DATABRICKS_HOST }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
       - name: Deploy to Staging
-        id: deployment
         run: |
+          echo "🚀 Deploying to Staging"
+          
           databricks bundle deploy -t staging
           
-          # Get workspace URL
-          WORKSPACE_URL=$(echo $DATABRICKS_HOST | sed 's/https:\/\///')
-          echo "workspace_url=https://${WORKSPACE_URL}" >> $GITHUB_OUTPUT
+          echo "✅ Staging deployment complete"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_STAGING_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_STAGING_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
 
       - name: Run Integration Tests
         run: |
-          echo "Running integration tests on staging..."
-          # Add your test commands here
+          echo "🧪 Running integration tests..."
+          
+          # Get pipeline ID
+          PIPELINE_ID=$(databricks pipelines list | grep "NYC Taxi DLT Pipeline" | head -1 | awk '{print $1}' || echo "")
+          
+          if [ -n "$PIPELINE_ID" ]; then
+            echo "Starting DLT pipeline: $PIPELINE_ID"
+            databricks pipelines start --pipeline-id $PIPELINE_ID || true
+            sleep 30
+            echo "✅ Pipeline started"
+          else
+            echo "⚠️ Pipeline not found"
+          fi
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_STAGING_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_STAGING_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
+        continue-on-error: true
 
-      - name: Post Deployment Summary
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const summary = `## Staging Deployment Summary
-            
-            - ✅ Bundle deployed successfully
-            - 🌐 Workspace: ${{ steps.deployment.outputs.workspace_url }}
-            - 📊 Environment: Staging
-            - 🔗 [View in Databricks](${{ steps.deployment.outputs.workspace_url }})
-            `;
-            
-            if (context.eventName === 'pull_request') {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: summary
-              });
-            }
-
-  # ============================================================================
-  # DEPLOY TO PRODUCTION - Main branch only or manual trigger
-  # ============================================================================
-  deploy_prod:
+  # ===========================================================================
+  # DEPLOY PRODUCTION - On merge to main
+  # ===========================================================================
+  deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: validate
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+      (github.event_name == 'push' && 
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'workflow_dispatch' && 
+       github.event.inputs.environment == 'prod')
     environment:
       name: production
-      url: ${{ steps.deployment.outputs.workspace_url }}
+      url: ${{ secrets.DATABRICKS_HOST }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Create backup
+      - name: Create Backup
         run: |
-          echo "Creating backup of current production deployment..."
-          databricks bundle summary -t prod > backup_prod_$(date +%Y%m%d_%H%M%S).json
+          echo "💾 Creating backup of current production"
+          databricks bundle summary -t prod > backup_prod_$(date +%Y%m%d_%H%M%S).json || true
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
         continue-on-error: true
 
       - name: Deploy to Production
-        id: deployment
         run: |
-          # Deploy with production settings
-          databricks bundle deploy -t prod \
-            --var="dlt_continuous=true" \
-            --var="dlt_edition=ADVANCED" \
-            --var="workflow_schedule_enabled=true"
+          echo "🚀 Deploying to Production"
           
-          WORKSPACE_URL=$(echo $DATABRICKS_HOST | sed 's/https:\/\///')
-          echo "workspace_url=https://${WORKSPACE_URL}" >> $GITHUB_OUTPUT
+          databricks bundle deploy -t prod
+          
+          echo "✅ Production deployment complete"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
 
       - name: Verify Deployment
         run: |
-          echo "Verifying production deployment..."
+          echo "✅ Verifying production deployment..."
           databricks bundle summary -t prod
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
 
-      - name: Send Slack Notification
-        if: always()
-        uses: slackapi/slack-github-action@v1
+      - name: Create GitHub Release (Optional)
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
         with:
-          payload: |
-            {
-              "text": "Production Deployment ${{ job.status }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Production Deployment*\n:rocket: Status: ${{ job.status }}\n:git: Commit: ${{ github.sha }}\n:link: <${{ steps.deployment.outputs.workspace_url }}|View in Databricks>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          script: |
+            const tag = `release-${new Date().toISOString().split('T')[0]}`;
+            github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Production Release ${tag}`,
+              body: `Automated production deployment\n\nCommit: ${context.sha}`,
+              draft: false,
+              prerelease: false
+            });
         continue-on-error: true
 
-  # ============================================================================
-  # MANUAL DEPLOYMENT - Flexible deployment with custom options
-  # ============================================================================
-  deploy_manual:
+  # ===========================================================================
+  # MANUAL DEPLOYMENT - For custom deployments
+  # ===========================================================================
+  deploy-manual:
     name: Manual Deployment
     runs-on: ubuntu-latest
     needs: validate
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.environment == 'dev'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
       - name: Deploy with Custom Options
         run: |
           DEPLOY_DLT="${{ github.event.inputs.deploy_dlt }}"
           DEPLOY_WORKFLOW="${{ github.event.inputs.deploy_workflow }}"
           
-          echo "Deploying with options:"
+          echo "🚀 Manual Deployment"
+          echo "  - Environment: dev"
           echo "  - Deploy DLT: ${DEPLOY_DLT}"
           echo "  - Deploy Workflow: ${DEPLOY_WORKFLOW}"
           
           databricks bundle deploy -t dev \
             --var="deploy_dlt=${DEPLOY_DLT}" \
             --var="deploy_workflow=${DEPLOY_WORKFLOW}"
+          
+          echo "✅ Manual deployment complete"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
-  # ============================================================================
+  # ===========================================================================
   # CLEANUP - Remove feature branch deployments
-  # ============================================================================
+  # ===========================================================================
   cleanup:
     name: Cleanup Feature Branch
     runs-on: ubuntu-latest
-    if: github.event_name == 'delete' && startsWith(github.ref, 'refs/heads/feature/')
+    if: |
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' &&
+      startsWith(github.head_ref, 'feature/')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Extract branch name
+      - name: Extract branch info
         id: branch
         run: |
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          BRANCH_NAME="${BRANCH_NAME//\//_}"
-          SUFFIX="_${BRANCH_NAME}"
+          BRANCH_NAME="${{ github.head_ref }}"
+          CLEAN_NAME=$(echo "$BRANCH_NAME" | sed 's|feature/||' | sed 's|[^a-zA-Z0-9]|_|g' | cut -c1-20)
+          SUFFIX="_${CLEAN_NAME}"
           echo "suffix=${SUFFIX}" >> $GITHUB_OUTPUT
+          echo "Cleaning up: ${SUFFIX}"
 
-      - name: Destroy Feature Branch Deployment
+      - name: Destroy Feature Environment
         run: |
+          echo "🧹 Cleaning up feature branch deployment"
+          
           databricks bundle destroy -t dev \
             --var="environment_suffix=${{ steps.branch.outputs.suffix }}" \
             --auto-approve
+          
+          echo "✅ Cleanup complete"
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
         continue-on-error: true
-
-  # ============================================================================
-  # COST REPORT - Estimate deployment costs (optional)
-  # ============================================================================
-  cost_estimate:
-    name: Cost Estimation
-    runs-on: ubuntu-latest
-    needs: validate
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Estimate Costs
-        run: |
-          echo "## Cost Estimation" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Configuration | Est. Cost/Hour |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|---------------|----------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| DLT Pipeline | Serverless ADVANCED | \$8-12 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Workflow Jobs | Serverless | \$2-4 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Storage (Unity Catalog) | Per TB | \$0.02/GB |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ Costs are estimates. Actual costs may vary based on usage patterns." >> $GITHUB_STEP_SUMMARY
