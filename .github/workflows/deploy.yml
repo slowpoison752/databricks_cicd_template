@@ -190,7 +190,6 @@ jobs:
        github.event.inputs.environment == 'staging')
     environment:
       name: staging
-      url: ${{ secrets.DATABRICKS_HOST }}
 
     steps:
       - name: Checkout code
@@ -246,7 +245,6 @@ jobs:
        github.event.inputs.environment == 'prod')
     environment:
       name: production
-      url: ${{ secrets.DATABRICKS_HOST }}
 
     steps:
       - name: Checkout code
