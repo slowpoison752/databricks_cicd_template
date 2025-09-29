@@ -214,8 +214,8 @@ resources:
             path: ./src/dlt/nyc_taxi_dlt_bronze.py
         - file:
             path: ./src/dlt/nyc_taxi_dlt_silver.py
-        - file:
-            path: ./src/dlt/nyc_taxi_dlt_gold.py
+#        - file:
+#            path: ./src/dlt/nyc_taxi_dlt_gold.py
 
       # Settings from variables
       development: ${var.dlt_development}
