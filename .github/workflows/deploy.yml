@@ -51,8 +51,7 @@ jobs:
         run: databricks bundle validate -t dev
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
           ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
           ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
@@ -116,8 +115,10 @@ jobs:
           echo "✅ DLT pipeline deployed with suffix: ${{ steps.branch.outputs.suffix }}"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
       - name: Deploy Full Stack (Develop/Master)
         if: steps.branch.outputs.is_feature == 'false'
@@ -132,8 +133,10 @@ jobs:
           echo "✅ Full deployment complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
       - name: Get Deployment Summary
         id: summary
@@ -143,8 +146,10 @@ jobs:
             --var="environment_suffix=${{ steps.branch.outputs.suffix }}"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
         continue-on-error: true
 
       - name: Comment on PR (if applicable)
@@ -207,8 +212,10 @@ jobs:
           echo "✅ Staging deployment complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_STAGING_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
 
       - name: Run Integration Tests
         run: |
@@ -227,8 +234,10 @@ jobs:
           fi
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_STAGING_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_STAGING_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_STAGING_CLIENT_SECRET }}
         continue-on-error: true
 
   # ===========================================================================
@@ -259,8 +268,10 @@ jobs:
           databricks bundle summary -t prod > backup_prod_$(date +%Y%m%d_%H%M%S).json || true
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
         continue-on-error: true
 
       - name: Deploy to Production
@@ -272,8 +283,10 @@ jobs:
           echo "✅ Production deployment complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
 
       - name: Verify Deployment
         run: |
@@ -281,8 +294,10 @@ jobs:
           databricks bundle summary -t prod
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_PROD_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_PROD_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_PROD_CLIENT_SECRET }}
 
       - name: Create GitHub Release (Optional)
         if: github.event_name == 'push'
@@ -336,8 +351,10 @@ jobs:
           echo "✅ Manual deployment complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
 
   # ===========================================================================
   # CLEANUP - Remove feature branch deployments
@@ -377,6 +394,8 @@ jobs:
           echo "✅ Cleanup complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: azure-client-secret
+          ARM_TENANT_ID: ${{ secrets.DATABRICKS_DEV_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ secrets.DATABRICKS_DEV_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_DEV_CLIENT_SECRET }}
         continue-on-error: true
