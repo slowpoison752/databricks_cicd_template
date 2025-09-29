@@ -140,7 +140,7 @@ environments:
       dlt_continuous:
         default: "false"
       dlt_edition:
-        default: "CORE"  # Use cheaper edition for dev
+        default: "ADVANCED"  # Use cheaper edition for dev
       workflow_schedule_enabled:
         default: "false"
 
