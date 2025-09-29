@@ -129,14 +129,20 @@ environments:
 
     variables:
       # Override catalog/schema for dev
-      catalog_name: "dev_catalog"  # 📝 CHANGE THIS: Your dev catalog
-      schema_name: "${var.project_name}${var.environment_suffix}"
+      catalog_name:
+        default: "dev_catalog"  # 📝 CHANGE THIS: Your dev catalog
+      schema_name:
+        default: "${var.project_name}${var.environment_suffix}"
 
       # Dev-specific settings
-      dlt_development: "true"
-      dlt_continuous: "false"
-      dlt_edition: "CORE"  # Use cheaper edition for dev
-      workflow_schedule_enabled: "false"
+      dlt_development:
+        default: "true"
+      dlt_continuous:
+        default: "false"
+      dlt_edition:
+        default: "CORE"  # Use cheaper edition for dev
+      workflow_schedule_enabled:
+        default: "false"
 
   # ----------------------------------------------------------------------------
   # STAGING ENVIRONMENT
@@ -147,14 +153,20 @@ environments:
 
     variables:
       # Override catalog/schema for staging
-      catalog_name: "staging_catalog"  # 📝 CHANGE THIS: Your staging catalog
-      schema_name: "${var.project_name}"
+      catalog_name:
+        default: "staging_catalog"  # 📝 CHANGE THIS: Your staging catalog
+      schema_name:
+        default: "${var.project_name}"
 
       # Staging-specific settings
-      dlt_development: "false"
-      dlt_continuous: "false"
-      dlt_edition: "ADVANCED"
-      workflow_schedule_enabled: "true"
+      dlt_development:
+        default: "false"
+      dlt_continuous:
+        default: "false"
+      dlt_edition:
+        default: "ADVANCED"
+      workflow_schedule_enabled:
+        default: "true"
 
   # ----------------------------------------------------------------------------
   # PRODUCTION ENVIRONMENT
@@ -165,15 +177,22 @@ environments:
 
     variables:
       # Override catalog/schema for prod
-      catalog_name: "prod_catalog"  # 📝 CHANGE THIS: Your prod catalog
-      schema_name: "${var.project_name}"
+      catalog_name:
+        default: "prod_catalog"  # 📝 CHANGE THIS: Your prod catalog
+      schema_name:
+        default: "${var.project_name}"
 
       # Production-specific settings
-      dlt_development: "false"
-      dlt_continuous: "true"  # Always running in prod
-      dlt_edition: "ADVANCED"
-      workflow_schedule_enabled: "true"
-      deploy_dlt_runner: "false"  # Use continuous mode instead
+      dlt_development:
+        default: "false"
+      dlt_continuous:
+        default: "true"  # Always running in prod
+      dlt_edition:
+        default: "ADVANCED"
+      workflow_schedule_enabled:
+        default: "true"
+      deploy_dlt_runner:
+        default: "false"  # Use continuous mode instead
 
 # ============================================================================
 # RESOURCE DEFINITIONS
@@ -187,8 +206,7 @@ resources:
   # ----------------------------------------------------------------------------
   pipelines:
     nyc_taxi_dlt_pipeline:
-      # Conditional deployment based on deploy_dlt variable
-      if: ${var.deploy_dlt} == "true"
+      # To skip DLT deployment: databricks bundle deploy --var="deploy_dlt=false"
 
       name: "${var.dlt_pipeline_name}${var.environment_suffix}"
 
@@ -202,7 +220,6 @@ resources:
       configuration:
         source_path: "${var.source_data_path}"
         environment_suffix: "${var.environment_suffix}"
-        pipeline_mode: "${{var.dlt_development == 'true' ? 'development' : 'production'}}"
         catalog_name: "${var.catalog_name}"
         schema_name: "${var.schema_name}"
         project_name: "${var.project_name}"
@@ -239,7 +256,7 @@ resources:
   jobs:
     # Legacy job - Your existing workflow
     nyc_taxi_pipeline:
-      if: ${var.deploy_workflow} == "true"
+      # To skip workflow deployment: databricks bundle deploy --var="deploy_workflow=false"
 
       name: "${var.workflow_name}${var.environment_suffix}"
 
@@ -278,7 +295,7 @@ resources:
       schedule:
         quartz_cron_expression: "${var.workflow_cron_schedule}"
         timezone_id: "UTC"
-        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
+        pause_status: "PAUSED"  # Always start paused, enable manually or via variable
 
       # Notifications
       email_notifications:
@@ -287,7 +304,7 @@ resources:
 
     # DLT Runner Job - Triggers DLT pipeline
     run_dlt_pipeline:
-      if: ${var.deploy_dlt} == "true" && ${var.deploy_dlt_runner} == "true"
+      # To skip DLT runner: databricks bundle deploy --var="deploy_dlt_runner=false"
 
       name: "DLT Pipeline Runner${var.environment_suffix}"
 
@@ -302,7 +319,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
         timezone_id: "UTC"
-        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
+        pause_status: "PAUSED"  # Start paused, enable manually when needed
 
       email_notifications:
         on_failure:
@@ -340,7 +357,7 @@ resources:
 #
 #          job_cluster_key: serverless_cluster
 #          timeout_seconds: 3600
-
+#
 #        # Task 3: Data quality checks
 #        - task_key: data_quality_checks
 #          depends_on:
@@ -369,7 +386,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 3 * * ?"
         timezone_id: "UTC"
-        pause_status: "${{var.workflow_schedule_enabled == 'true' ? 'UNPAUSED' : 'PAUSED'}}"
+        pause_status: "PAUSED"  # Start paused, enable manually when needed
 
       email_notifications:
         on_failure:
