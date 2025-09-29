@@ -140,7 +140,7 @@ environments:
       dlt_continuous:
         default: "false"
       dlt_edition:
-        default: "ADVANCED"  # Use cheaper edition for dev
+        default: "CORE"  # Use cheaper edition for dev
       workflow_schedule_enabled:
         default: "false"
 
@@ -231,8 +231,8 @@ resources:
             path: ./src/dlt/nyc_taxi_dlt_bronze.py
         - file:
             path: ./src/dlt/nyc_taxi_dlt_silver.py
-#        - file:
-#            path: ./src/dlt/nyc_taxi_dlt_gold.py
+        - file:
+            path: ./src/dlt/nyc_taxi_dlt_gold.py
 
       # Settings from variables
       development: ${var.dlt_development}
@@ -286,8 +286,6 @@ resources:
             data_security_mode: SINGLE_USER
             runtime_engine: PHOTON
             spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
               spark.databricks.unityCatalog.enabled: "true"
             custom_tags:
               environment: "${var.environment_suffix}"
@@ -344,37 +342,37 @@ resources:
             full_refresh: false
           timeout_seconds: 7200
 
-#        # Task 2: Post-DLT processing
-#        - task_key: post_dlt_processing
-#          depends_on:
-#            - task_key: run_dlt
-#
-#          spark_python_task:
-#            # 📝 UPDATE THIS: Point to your post-processing script
-#            python_file: ./src/jobs/post_dlt_processing.py
-#            parameters:
-#              - "--catalog"
-#              - "${var.catalog_name}"
-#              - "--schema"
-#              - "${var.schema_name}"
-#
-#          job_cluster_key: serverless_cluster
-#          timeout_seconds: 3600
-#
-#        # Task 3: Data quality checks
-#        - task_key: data_quality_checks
-#          depends_on:
-#            - task_key: post_dlt_processing
-#
-#          notebook_task:
-#            # 📝 UPDATE THIS: Point to your quality check notebook
-#            notebook_path: ./src/notebooks/data_quality_checks
-#            base_parameters:
-#              catalog: ${var.catalog_name}
-#              schema: ${var.schema_name}
-#
-#          job_cluster_key: serverless_cluster
-#          timeout_seconds: 1800
+        # Task 2: Post-DLT processing
+        - task_key: post_dlt_processing
+          depends_on:
+            - task_key: run_dlt
+
+          spark_python_task:
+            # 📝 UPDATE THIS: Point to your post-processing script
+            python_file: ./src/jobs/post_dlt_processing.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+
+          job_cluster_key: serverless_cluster
+          timeout_seconds: 3600
+
+        # Task 3: Data quality checks
+        - task_key: data_quality_checks
+          depends_on:
+            - task_key: post_dlt_processing
+
+          notebook_task:
+            # 📝 UPDATE THIS: Point to your quality check notebook
+            notebook_path: ./src/notebooks/data_quality_checks
+            base_parameters:
+              catalog: ${var.catalog_name}
+              schema: ${var.schema_name}
+
+          job_cluster_key: serverless_cluster
+          timeout_seconds: 1800
 
       job_clusters:
         - job_cluster_key: serverless_cluster
