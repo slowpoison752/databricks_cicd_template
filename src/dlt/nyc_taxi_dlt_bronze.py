@@ -6,7 +6,6 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
 
-
 # Get configuration from DLT pipeline settings
 def get_config(key, default=None):
     """Safely get configuration from Spark conf"""
@@ -15,12 +14,14 @@ def get_config(key, default=None):
     except Exception:
         return default
 
-
 # Configuration
 SOURCE_PATH = get_config("source_path", "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz")
 CATALOG = get_config("catalog_name", "dev_catalog")
 SCHEMA = get_config("schema_name", "nyc_taxi_dev")
 ENVIRONMENT = get_config("environment_suffix", "")
+
+# Table name suffix for feature branch isolation
+TABLE_SUFFIX = ENVIRONMENT.replace("-", "_").replace("/", "_")  # Sanitize suffix
 
 # Define schema for NYC taxi data
 taxi_schema = StructType([
@@ -43,13 +44,12 @@ taxi_schema = StructType([
     StructField("total_amount", DoubleType(), True)
 ])
 
-
 # ============================================================================
 # BRONZE LAYER - Raw Data Ingestion
 # ============================================================================
 
 @dlt.table(
-    name="bronze_taxi_raw",
+    name=f"bronze_taxi_raw",
     comment="Raw NYC taxi trip data ingested from CSV - Bronze layer",
     table_properties={
         "quality": "bronze",
@@ -82,13 +82,12 @@ def bronze_taxi_raw():
         .withColumn("environment", F.lit(ENVIRONMENT))
     )
 
-
 # ============================================================================
 # BRONZE LAYER - Enriched with Metadata
 # ============================================================================
 
 @dlt.table(
-    name="bronze_taxi_enriched",
+    name=f"bronze_taxi_enriched",
     comment="Bronze taxi data enriched with computed columns and metadata",
     table_properties={
         "quality": "bronze",
@@ -108,8 +107,8 @@ def bronze_taxi_enriched():
 
     Target: {CATALOG}.{SCHEMA}.bronze_taxi_enriched
     """
-    # Read from bronze_taxi_raw using Unity Catalog path
-    df = dlt.read("bronze_taxi_raw")
+    # Read from bronze_taxi_raw using the suffixed name
+    df = dlt.read(f"bronze_taxi_raw")
 
     return (
         df
@@ -146,7 +145,6 @@ def bronze_taxi_enriched():
         .withColumn("bronze_processed_timestamp", F.current_timestamp())
     )
 
-
 # ============================================================================
 # BRONZE LAYER - Streaming View (Optional)
 # ============================================================================
@@ -171,13 +169,12 @@ def bronze_taxi_streaming():
         .withColumn("ingestion_timestamp", F.current_timestamp())
     )
 
-
 # ============================================================================
 # DATA QUALITY METRICS TABLE
 # ============================================================================
 
 @dlt.table(
-    name="bronze_data_quality_metrics",
+    name=f"bronze_data_quality_metrics",
     comment="Data quality metrics for bronze layer monitoring",
     table_properties={
         "quality": "metrics"
@@ -189,7 +186,7 @@ def bronze_data_quality_metrics():
 
     Target: {CATALOG}.{SCHEMA}.bronze_data_quality_metrics
     """
-    df = dlt.read("bronze_taxi_enriched")
+    df = dlt.read(f"bronze_taxi_enriched")
 
     return (
         df
@@ -213,7 +210,6 @@ def bronze_data_quality_metrics():
         )
     )
 
-
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -221,7 +217,6 @@ def bronze_data_quality_metrics():
 def get_bronze_table_path(table_name):
     """Helper function to get full Unity Catalog path for bronze tables"""
     return f"{CATALOG}.{SCHEMA}.{table_name}"
-
 
 # Print configuration for debugging (visible in DLT logs)
 print(f"DLT Bronze Layer Configuration:")

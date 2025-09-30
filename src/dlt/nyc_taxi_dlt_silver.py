@@ -6,7 +6,6 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-
 # Get configuration from DLT pipeline settings
 def get_config(key, default=None):
     """Safely get configuration from Spark conf"""
@@ -15,10 +14,10 @@ def get_config(key, default=None):
     except Exception:
         return default
 
-
 # Configuration
 CATALOG = get_config("catalog_name", "dev_catalog")
 SCHEMA = get_config("schema_name", "nyc_taxi_dev")
+ENVIRONMENT = get_config("environment_suffix", "")
 
 
 # ============================================================================
@@ -142,7 +141,6 @@ def silver_taxi_trips():
         )
     )
 
-
 # ============================================================================
 # SILVER LAYER - Aggregated Daily Stats
 # ============================================================================
@@ -218,7 +216,6 @@ def silver_daily_trip_stats():
         )
     )
 
-
 # ============================================================================
 # SILVER LAYER - Hourly Stats by Location
 # ============================================================================
@@ -263,7 +260,6 @@ def silver_hourly_location_stats():
         )
     )
 
-
 # ============================================================================
 # SILVER LAYER - Payment Analysis
 # ============================================================================
@@ -304,7 +300,6 @@ def silver_payment_analysis():
         )
     )
 
-
 # ============================================================================
 # SILVER LAYER - Data Quality Checks
 # ============================================================================
@@ -338,7 +333,6 @@ def silver_data_quality():
         ["date", "bronze_records", "silver_records", "pass_rate_percentage", "records_dropped", "check_timestamp"]
     )
 
-
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -346,7 +340,6 @@ def silver_data_quality():
 def get_silver_table_path(table_name):
     """Helper function to get full Unity Catalog path for silver tables"""
     return f"{CATALOG}.{SCHEMA}.{table_name}"
-
 
 # Print configuration for debugging
 print(f"DLT Silver Layer Configuration:")
