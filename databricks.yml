@@ -140,7 +140,7 @@ environments:
       dlt_continuous:
         default: "false"
       dlt_edition:
-        default: "ADVANCED"  # Use cheaper edition for dev
+        default: "CORE"  # Use cheaper edition for dev
       workflow_schedule_enabled:
         default: "false"
 
@@ -341,7 +341,7 @@ resources:
             pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
             full_refresh: false
           timeout_seconds: 7200
-
+#
 #        # Task 2: Post-DLT processing
 #        - task_key: post_dlt_processing
 #          depends_on:
@@ -373,7 +373,7 @@ resources:
 #
 #          job_cluster_key: serverless_cluster
 #          timeout_seconds: 1800
-
+#
       job_clusters:
         - job_cluster_key: serverless_cluster
           new_cluster:
