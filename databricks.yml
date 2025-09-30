@@ -67,7 +67,7 @@ environments:
       catalog_name:
         default: "dev_catalog"
       schema_name:
-        default: "${var.project_name}${var.environment_suffix}"
+        default: "nyc_taxi"
       dlt_development:
         default: "true"
       dlt_continuous:
@@ -108,7 +108,7 @@ environments:
 resources:
   pipelines:
     nyc_taxi_dlt_pipeline:
-      name: "${var.dlt_pipeline_name}${var.environment_suffix}"
+      name: "${var.dlt_pipeline_name}"
       target: "${var.catalog_name}.${var.schema_name}"
       serverless: true
       
@@ -140,7 +140,7 @@ resources:
 
   jobs:
     nyc_taxi_pipeline:
-      name: "${var.workflow_name}${var.environment_suffix}"
+      name: "${var.workflow_name}"
 
       tasks:
         - task_key: bronze_ingestion
@@ -182,7 +182,7 @@ resources:
           - ${var.notification_email}
 
     run_dlt_pipeline:
-      name: "DLT Pipeline Runner${var.environment_suffix}"
+      name: "DLT Pipeline Runner"
 
       tasks:
         - task_key: trigger_dlt_pipeline
