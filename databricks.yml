@@ -12,11 +12,11 @@ variables:
 
   notification_email:
     description: "Email for pipeline notifications"
-    default: "data-engineering@company.com"
+    default: "aditya752@outlook.com"
 
   catalog_name:
     description: "Unity Catalog name"
-    default: "main"
+    default: "dev_catalog"
 
   schema_name:
     description: "Schema name within the catalog"
