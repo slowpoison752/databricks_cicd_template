@@ -58,67 +58,13 @@ variables:
     description: "Environment suffix for feature branches"
     default: ""
 
-  # Dashboard-specific variables
   dashboard_warehouse_id:
     description: "SQL Warehouse ID for dashboard queries"
-    default: ""  # Will be set per environment
+    default: ""
 
   dashboard_refresh_schedule:
     description: "Dashboard refresh schedule in cron format"
-    default: "0 */15 * * * ?"  # Every 15 minutes
-
-environments:
-  dev:
-    default: true
-    workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
-    variables:
-      catalog_name:
-        default: "dev_catalog"
-      schema_name:
-        default: "nyc_taxi"
-      dlt_development:
-        default: "true"
-      dlt_continuous:
-        default: "false"
-      dlt_edition:
-        default: "ADVANCED"
-      dashboard_warehouse_id:
-        default: "${workspace.default_sql_warehouse.id}"  # Use workspace default
-
-  staging:
-    workspace:
-      root_path: /Workspace/Shared/.bundle/${bundle.name}/staging
-    variables:
-      catalog_name:
-        default: "staging_catalog"
-      schema_name:
-        default: "${var.project_name}"
-      dlt_development:
-        default: "false"
-      dlt_continuous:
-        default: "false"
-      dlt_edition:
-        default: "ADVANCED"
-      dashboard_warehouse_id:
-        default: "${workspace.default_sql_warehouse.id}"
-
-  prod:
-    workspace:
-      root_path: /Workspace/Shared/.bundle/${bundle.name}/prod
-    variables:
-      catalog_name:
-        default: "prod_catalog"
-      schema_name:
-        default: "${var.project_name}"
-      dlt_development:
-        default: "false"
-      dlt_continuous:
-        default: "true"
-      dlt_edition:
-        default: "ADVANCED"
-      dashboard_warehouse_id:
-        default: "${workspace.default_sql_warehouse.id}"
+    default: "0 */15 * * * ?"
 
 resources:
   pipelines:
@@ -217,7 +163,6 @@ resources:
         on_failure:
           - ${var.notification_email}
 
-    # Dashboard refresh job
     refresh_executive_dashboard:
       name: "Refresh Executive Dashboard${var.environment_suffix}"
 
@@ -251,35 +196,74 @@ resources:
       schedule:
         quartz_cron_expression: "${var.dashboard_refresh_schedule}"
         timezone_id: "UTC"
-        pause_status: "UNPAUSED"  # Auto-start in dev
+        pause_status: "UNPAUSED"
 
       email_notifications:
         on_failure:
           - ${var.notification_email}
 
-  # Experiments for MLflow (optional, for future use)
   experiments:
     dashboard_analytics:
       name: "/Shared/${var.project_name}/dashboard_experiments${var.environment_suffix}"
-      description: "Experiments for dashboard analytics and ML models"
 
-# Include additional dashboard configurations
 include:
   - resources/dashboards/*.yml
 
-#targets:
-#  dev:
-#    mode: development
-#    default: true
-#    workspace:
-#      host: ${workspace.host}
-#
-#  staging:
-#    mode: production
-#    workspace:
-#      host: ${workspace.host}
-#
-#  prod:
-#    mode: production
-#    workspace:
-#      host: ${workspace.host}
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
+
+    variables:
+      catalog_name:
+        default: "dev_catalog"
+      schema_name:
+        default: "nyc_taxi"
+      dlt_development:
+        default: "true"
+      dlt_continuous:
+        default: "false"
+      dlt_edition:
+        default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: ""
+
+  staging:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/staging
+
+    variables:
+      catalog_name:
+        default: "staging_catalog"
+      schema_name:
+        default: "${var.project_name}"
+      dlt_development:
+        default: "false"
+      dlt_continuous:
+        default: "false"
+      dlt_edition:
+        default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: ""
+
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/prod
+
+    variables:
+      catalog_name:
+        default: "prod_catalog"
+      schema_name:
+        default: "${var.project_name}"
+      dlt_development:
+        default: "false"
+      dlt_continuous:
+        default: "true"
+      dlt_edition:
+        default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: ""
