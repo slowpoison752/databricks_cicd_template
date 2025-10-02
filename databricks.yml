@@ -70,7 +70,7 @@ resources:
   pipelines:
     nyc_taxi_dlt_pipeline:
       name: "${var.dlt_pipeline_name}${var.environment_suffix}"
-      target: "${var.catalog_name}.${var.schema_name}"
+      target: "${var.schema_name}"
       serverless: true
 
       configuration:
