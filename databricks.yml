@@ -129,7 +129,7 @@ resources:
       channel: ${var.dlt_channel}
       edition: ${var.dlt_edition}
       continuous: ${var.dlt_continuous}
-      catalog: ${var.catalog_name}
+      #catalog: ${var.catalog_name}
 
       notifications:
         - email_recipients:
