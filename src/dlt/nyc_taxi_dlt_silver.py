@@ -312,8 +312,8 @@ def silver_payment_analysis():
     }
 )
 def silver_data_quality():
-    bronze_df = dlt.read(f"bronze_taxi_enriched{TABLE_SUFFIX}")
-    silver_df = dlt.read(f"silver_taxi_trips{TABLE_SUFFIX}")
+    bronze_df = dlt.read(f"bronze_taxi_enriched")
+    silver_df = dlt.read(f"silver_taxi_trips")
 
     bronze_count = bronze_df.count()
     silver_count = silver_df.count()
