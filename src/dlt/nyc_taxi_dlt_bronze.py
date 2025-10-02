@@ -78,7 +78,7 @@ def bronze_taxi_raw():
         .schema(taxi_schema)
         .load(SOURCE_PATH)
         .withColumn("ingestion_timestamp", F.current_timestamp())
-        .withColumn("source_file", F.input_file_name())
+        .withColumn("source_file", F.col("_metadata.file_path"))
         .withColumn("environment", F.lit(ENVIRONMENT))
     )
 

@@ -312,27 +312,23 @@ def silver_payment_analysis():
     }
 )
 def silver_data_quality():
-    """
-    Track data quality metrics for the silver layer.
-    """
-    bronze_df = dlt.read("bronze_taxi_enriched")
-    silver_df = dlt.read("silver_taxi_trips")
+    bronze_df = dlt.read(f"bronze_taxi_enriched{TABLE_SUFFIX}")
+    silver_df = dlt.read(f"silver_taxi_trips{TABLE_SUFFIX}")
 
     bronze_count = bronze_df.count()
     silver_count = silver_df.count()
+    pass_rate = round((silver_count / bronze_count) * 100, 2) if bronze_count > 0 else 0
 
-    return spark.createDataFrame(
-        [(
-            F.current_date(),
-            bronze_count,
-            silver_count,
-            round((silver_count / bronze_count) * 100, 2) if bronze_count > 0 else 0,
-            bronze_count - silver_count,
-            F.current_timestamp()
-        )],
-        ["date", "bronze_records", "silver_records", "pass_rate_percentage", "records_dropped", "check_timestamp"]
-    )
-
+    # Use SQL to create the dataframe instead
+    return spark.sql(f"""
+        SELECT 
+            current_date() as date,
+            {bronze_count} as bronze_records,
+            {silver_count} as silver_records,
+            {pass_rate} as pass_rate_percentage,
+            {bronze_count - silver_count} as records_dropped,
+            current_timestamp() as check_timestamp
+    """)
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
