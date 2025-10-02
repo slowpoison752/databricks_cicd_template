@@ -12,11 +12,11 @@ variables:
 
   notification_email:
     description: "Email for pipeline notifications"
-    default: "aditya752@outlook.com"
+    default: "data-engineering@company.com"
 
   catalog_name:
     description: "Unity Catalog name"
-    default: "dev_catalog"
+    default: "main"
 
   schema_name:
     description: "Schema name within the catalog"
@@ -58,6 +58,15 @@ variables:
     description: "Environment suffix for feature branches"
     default: ""
 
+  # Dashboard-specific variables
+  dashboard_warehouse_id:
+    description: "SQL Warehouse ID for dashboard queries"
+    default: ""  # Will be set per environment
+
+  dashboard_refresh_schedule:
+    description: "Dashboard refresh schedule in cron format"
+    default: "0 */15 * * * ?"  # Every 15 minutes
+
 environments:
   dev:
     default: true
@@ -74,6 +83,8 @@ environments:
         default: "false"
       dlt_edition:
         default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: "${workspace.default_sql_warehouse.id}"  # Use workspace default
 
   staging:
     workspace:
@@ -89,6 +100,8 @@ environments:
         default: "false"
       dlt_edition:
         default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: "${workspace.default_sql_warehouse.id}"
 
   prod:
     workspace:
@@ -104,14 +117,16 @@ environments:
         default: "true"
       dlt_edition:
         default: "ADVANCED"
+      dashboard_warehouse_id:
+        default: "${workspace.default_sql_warehouse.id}"
 
 resources:
   pipelines:
     nyc_taxi_dlt_pipeline:
-      name: "${var.dlt_pipeline_name}"
-      target: "${var.schema_name}"
+      name: "${var.dlt_pipeline_name}${var.environment_suffix}"
+      target: "${var.catalog_name}.${var.schema_name}"
       serverless: true
-      
+
       configuration:
         source_path: "${var.source_data_path}"
         environment_suffix: "${var.environment_suffix}"
@@ -124,6 +139,8 @@ resources:
             path: ./src/dlt/nyc_taxi_dlt_bronze.py
         - file:
             path: ./src/dlt/nyc_taxi_dlt_silver.py
+        - file:
+            path: ./src/dlt/nyc_taxi_dlt_gold.py
 
       development: ${var.dlt_development}
       channel: ${var.dlt_channel}
@@ -140,7 +157,7 @@ resources:
 
   jobs:
     nyc_taxi_pipeline:
-      name: "${var.workflow_name}"
+      name: "${var.workflow_name}${var.environment_suffix}"
 
       tasks:
         - task_key: bronze_ingestion
@@ -182,7 +199,7 @@ resources:
           - ${var.notification_email}
 
     run_dlt_pipeline:
-      name: "DLT Pipeline Runner"
+      name: "DLT Pipeline Runner${var.environment_suffix}"
 
       tasks:
         - task_key: trigger_dlt_pipeline
@@ -199,3 +216,70 @@ resources:
       email_notifications:
         on_failure:
           - ${var.notification_email}
+
+    # Dashboard refresh job
+    refresh_executive_dashboard:
+      name: "Refresh Executive Dashboard${var.environment_suffix}"
+
+      tasks:
+        - task_key: refresh_dashboard
+          notebook_task:
+            notebook_path: ./src/notebooks/executive_dashboard.py
+            base_parameters:
+              catalog: "${var.catalog_name}"
+              schema: "${var.schema_name}"
+              days_back: "30"
+          timeout_seconds: 1800
+          job_cluster_key: dashboard_cluster
+
+      job_clusters:
+        - job_cluster_key: dashboard_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.databricks.unityCatalog.enabled: "true"
+              spark.databricks.cluster.profile: "singleNode"
+              spark.master: "local[*]"
+            custom_tags:
+              environment: "${var.environment_suffix}"
+              project: "${var.project_name}"
+              purpose: "dashboard"
+
+      schedule:
+        quartz_cron_expression: "${var.dashboard_refresh_schedule}"
+        timezone_id: "UTC"
+        pause_status: "UNPAUSED"  # Auto-start in dev
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+  # Experiments for MLflow (optional, for future use)
+  experiments:
+    dashboard_analytics:
+      name: "/Shared/${var.project_name}/dashboard_experiments${var.environment_suffix}"
+      description: "Experiments for dashboard analytics and ML models"
+
+# Include additional dashboard configurations
+include:
+  - resources/dashboards/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${workspace.host}
+
+  staging:
+    mode: production
+    workspace:
+      host: ${workspace.host}
+
+  prod:
+    mode: production
+    workspace:
+      host: ${workspace.host}
