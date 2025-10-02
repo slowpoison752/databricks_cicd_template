@@ -106,7 +106,7 @@ jobs:
           echo "🚀 Deploying to dev environment"
           
           databricks bundle deploy -t dev \
-            --var="environment_suffix=${{ steps.branch.outputs.suffix }}"
+            --var="environment_suffix=${{ steps.branch.outputs.suffix }}"\
             --auto-approve
           echo "✅ Deployment complete"
         env:
