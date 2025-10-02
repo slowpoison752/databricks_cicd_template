@@ -25,7 +25,7 @@ ENVIRONMENT = get_config("environment_suffix", "")
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.silver_taxi_trips",
+    name="silver_taxi_trips",
     comment="Cleaned and validated taxi trip data - Silver layer",
     table_properties={
         "quality": "silver",
@@ -146,7 +146,7 @@ def silver_taxi_trips():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.silver_daily_trip_stats",
+    name="silver_daily_trip_stats",
     comment="Daily aggregated trip statistics - Silver layer",
     table_properties={
         "quality": "silver",
@@ -221,7 +221,7 @@ def silver_daily_trip_stats():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.silver_hourly_location_stats",
+    name="silver_hourly_location_stats",
     comment="Hourly trip statistics by pickup location - Silver layer",
     table_properties={
         "quality": "silver",
@@ -265,7 +265,7 @@ def silver_hourly_location_stats():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.silver_payment_analysis",
+    name="silver_payment_analysis",
     comment="Payment method analysis with tipping patterns - Silver layer",
     table_properties={
         "quality": "silver"
@@ -305,7 +305,7 @@ def silver_payment_analysis():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.silver_data_quality",
+    name="silver_data_quality",
     comment="Data quality metrics for silver layer",
     table_properties={
         "quality": "metrics"

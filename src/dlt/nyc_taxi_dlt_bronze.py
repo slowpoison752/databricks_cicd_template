@@ -49,7 +49,7 @@ taxi_schema = StructType([
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.bronze_taxi_raw",
+    name=f"bronze_taxi_raw",
     comment="Raw NYC taxi trip data ingested from CSV - Bronze layer",
     table_properties={
         "quality": "bronze",
@@ -87,7 +87,7 @@ def bronze_taxi_raw():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.bronze_taxi_enriched",
+    name=f"bronze_taxi_enriched",
     comment="Bronze taxi data enriched with computed columns and metadata",
     table_properties={
         "quality": "bronze",
@@ -174,7 +174,7 @@ def bronze_taxi_streaming():
 # ============================================================================
 
 @dlt.table(
-    name=f"{CATALOG}.{SCHEMA}.bronze_data_quality_metrics",
+    name=f"bronze_data_quality_metrics",
     comment="Data quality metrics for bronze layer monitoring",
     table_properties={
         "quality": "metrics"
