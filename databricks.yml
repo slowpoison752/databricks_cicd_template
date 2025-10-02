@@ -267,19 +267,19 @@ resources:
 include:
   - resources/dashboards/*.yml
 
-targets:
-  dev:
-    mode: development
-    default: true
-    workspace:
-      host: ${workspace.host}
-
-  staging:
-    mode: production
-    workspace:
-      host: ${workspace.host}
-
-  prod:
-    mode: production
-    workspace:
-      host: ${workspace.host}
+#targets:
+#  dev:
+#    mode: development
+#    default: true
+#    workspace:
+#      host: ${workspace.host}
+#
+#  staging:
+#    mode: production
+#    workspace:
+#      host: ${workspace.host}
+#
+#  prod:
+#    mode: production
+#    workspace:
+#      host: ${workspace.host}
