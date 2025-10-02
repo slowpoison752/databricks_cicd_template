@@ -107,7 +107,7 @@ jobs:
           
           databricks bundle deploy -t dev \
             --var="environment_suffix=${{ steps.branch.outputs.suffix }}"
-          
+            --auto-approve
           echo "✅ Deployment complete"
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
