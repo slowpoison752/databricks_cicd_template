@@ -58,13 +58,6 @@ variables:
     description: "Environment suffix for feature branches"
     default: ""
 
-  dashboard_warehouse_id:
-    description: "SQL Warehouse ID for dashboard queries"
-    default: ""
-
-  dashboard_refresh_schedule:
-    description: "Dashboard refresh schedule in cron format"
-    default: "0 */15 * * * ?"
 
 resources:
   pipelines:
@@ -162,52 +155,6 @@ resources:
       email_notifications:
         on_failure:
           - ${var.notification_email}
-
-#    refresh_executive_dashboard:
-#      name: "Refresh Executive Dashboard${var.environment_suffix}"
-#
-#      tasks:
-#        - task_key: refresh_dashboard
-#          notebook_task:
-#            notebook_path: ./src/notebooks/executive_dashboard.py
-#            base_parameters:
-#              catalog: "${var.catalog_name}"
-#              schema: "${var.schema_name}"
-#              days_back: "30"
-#          timeout_seconds: 1800
-#          job_cluster_key: dashboard_cluster
-#
-#      job_clusters:
-#        - job_cluster_key: dashboard_cluster
-#          new_cluster:
-#            spark_version: ${var.spark_version}
-#            node_type_id: "Standard_DS3_v2"
-#            num_workers: 0
-#            data_security_mode: SINGLE_USER
-#            spark_conf:
-#              spark.databricks.unityCatalog.enabled: "true"
-#              spark.databricks.cluster.profile: "singleNode"
-#              spark.master: "local[*]"
-#            custom_tags:
-#              environment: "${var.environment_suffix}"
-#              project: "${var.project_name}"
-#              purpose: "dashboard"
-#
-#      schedule:
-#        quartz_cron_expression: "${var.dashboard_refresh_schedule}"
-#        timezone_id: "UTC"
-#        pause_status: "UNPAUSED"
-#
-#      email_notifications:
-#        on_failure:
-#          - ${var.notification_email}
-
-  experiments:
-    dashboard_analytics:
-      name: "/Shared/${var.project_name}/dashboard_experiments${var.environment_suffix}"
-
-include:
-  - resources/dashboards/*.yml
 
 targets:
   dev:
