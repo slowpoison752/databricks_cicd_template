@@ -491,36 +491,40 @@ def gold_executive_summary():
     df = dlt.read("silver_taxi_trips")
     daily_stats = dlt.read("silver_daily_trip_stats")
 
-    # Get latest date
-    latest_date = df.agg(F.max("pickup_date")).collect()[0][0]
-
-    # Get metrics for latest date
-    latest_metrics = df.filter(F.col("pickup_date") == latest_date)
-
-    # Get 7-day and 30-day averages
-    last_7_days = daily_stats.filter(
-        F.col("pickup_date") >= F.date_sub(F.lit(latest_date), 7)
-    )
-    last_30_days = daily_stats.filter(
-        F.col("pickup_date") >= F.date_sub(F.lit(latest_date), 30)
+    # Get latest date using window function instead of collect
+    latest_metrics = (
+        df
+        .withColumn("max_date", F.max("pickup_date").over(Window.partitionBy()))
+        .filter(F.col("pickup_date") == F.col("max_date"))
     )
 
+    # Get 7-day and 30-day averages using date arithmetic
     summary = (
         latest_metrics
         .agg(
-            F.lit(latest_date).alias("report_date"),
+            F.max("pickup_date").alias("report_date"),
             F.count("*").alias("trips_today"),
             F.sum("total_amount").alias("revenue_today"),
             F.avg("total_amount").alias("avg_revenue_per_trip_today")
         )
         .crossJoin(
-            last_7_days.agg(
+            daily_stats
+            .join(
+                latest_metrics.select(F.max("pickup_date").alias("latest_date")),
+                on=[F.col("pickup_date") >= F.date_sub(F.col("latest_date"), 7)]
+            )
+            .agg(
                 F.avg("total_trips").alias("avg_trips_7d"),
                 F.avg("total_revenue").alias("avg_revenue_7d")
             )
         )
         .crossJoin(
-            last_30_days.agg(
+            daily_stats
+            .join(
+                latest_metrics.select(F.max("pickup_date").alias("latest_date")),
+                on=[F.col("pickup_date") >= F.date_sub(F.col("latest_date"), 30)]
+            )
+            .agg(
                 F.avg("total_trips").alias("avg_trips_30d"),
                 F.avg("total_revenue").alias("avg_revenue_30d")
             )
