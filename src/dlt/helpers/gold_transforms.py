@@ -1,51 +1,24 @@
 """
-NYC Taxi DLT Pipeline - Gold Layer
-Unity Catalog Compatible with Serverless Compute
-Business-ready aggregated tables for analytics and reporting
+NYC Taxi DLT Pipeline - Gold Layer Transformation Functions
+Pure transformation logic without DLT decorators
+
+These functions contain only the transformation logic and return DataFrames.
+They are called by the main dlt_pipeline.py which handles the @dlt decorators.
 """
-import dlt
-from pyspark.sql import functions as F
+from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.window import Window
 
 
-# Get configuration from DLT pipeline settings
-def get_config(key, default=None):
-    """Safely get configuration from Spark conf"""
-    try:
-        return spark.conf.get(key, default)
-    except Exception:
-        return default
-
-
-# Configuration
-CATALOG = get_config("catalog_name", "dev_catalog")
-SCHEMA = get_config("schema_name", "nyc_taxi_dev")
-
-
-# ============================================================================
-# GOLD LAYER - Business KPIs Dashboard
-# ============================================================================
-
-@dlt.table(
-    name="gold_daily_kpis",
-    comment="Daily KPI metrics for executive dashboards - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "pipelines.autoOptimize.managed": "true",
-        "business_owner": "analytics_team",
-        "refresh_schedule": "daily"
-    }
-)
-def gold_daily_kpis():
+def calculate_daily_kpis(df: DataFrame) -> DataFrame:
     """
-    Key Performance Indicators aggregated daily.
-    Business-ready table for executive dashboards.
+    Calculate daily KPI metrics for executive dashboards.
 
-    Target: {CATALOG}.{SCHEMA}.gold_daily_kpis
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with daily KPI metrics and day-over-day changes
     """
-    df = dlt.read("silver_taxi_trips")
-
-    # Calculate daily KPIs
     daily_kpis = (
         df
         .groupBy("pickup_date")
@@ -72,16 +45,12 @@ def gold_daily_kpis():
         )
     )
 
-    # Calculate day-over-day changes using window functions
     window_spec = Window.orderBy("pickup_date")
 
     return (
         daily_kpis
-        # Calculate previous day metrics
         .withColumn("prev_day_trips", F.lag("total_trips", 1).over(window_spec))
         .withColumn("prev_day_revenue", F.lag("total_revenue", 1).over(window_spec))
-
-        # Calculate percentage changes
         .withColumn(
             "trips_change_pct",
             F.round(
@@ -96,22 +65,16 @@ def gold_daily_kpis():
                 2
             )
         )
-
-        # Calculate derived business metrics
         .withColumn(
             "revenue_per_mile",
             F.round(F.col("total_revenue") / F.col("total_miles"), 2)
         )
         .withColumn(
             "utilization_rate",
-            F.round((F.col("total_miles") / (F.col("total_trips") * 10)) * 100, 2)  # Assuming 10 miles max per trip
+            F.round((F.col("total_miles") / (F.col("total_trips") * 10)) * 100, 2)
         )
-
-        # Add metadata
         .withColumn("last_updated", F.current_timestamp())
         .withColumn("data_freshness_hours", F.lit(24))
-
-        # Select and order columns
         .select(
             "pickup_date",
             "total_trips",
@@ -137,26 +100,16 @@ def gold_daily_kpis():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Peak Hours Analysis
-# ============================================================================
-
-@dlt.table(
-    name="gold_peak_hours_analysis",
-    comment="Peak hour demand patterns for operations planning - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "operations_team"
-    }
-)
-def gold_peak_hours_analysis():
+def analyze_peak_hours(df: DataFrame) -> DataFrame:
     """
-    Identify peak hours and demand patterns for resource allocation.
+    Identify peak hours and demand patterns for operations planning.
 
-    Target: {CATALOG}.{SCHEMA}.gold_peak_hours_analysis
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with peak hour analysis
     """
-    df = dlt.read("silver_taxi_trips")
-
     return (
         df
         .groupBy("pickup_hour", "is_weekend", "time_of_day")
@@ -169,17 +122,14 @@ def gold_peak_hours_analysis():
             F.sum("total_amount").alias("total_revenue"),
             F.countDistinct("pickup_date").alias("days_observed")
         )
-        # Calculate average trips per day for this hour
         .withColumn(
             "avg_trips_per_day",
             F.round(F.col("total_trips") / F.col("days_observed"), 0)
         )
-        # Calculate revenue per hour
         .withColumn(
             "avg_revenue_per_hour",
             F.round(F.col("total_revenue") / F.col("days_observed"), 2)
         )
-        # Rank hours by demand
         .withColumn(
             "demand_rank",
             F.dense_rank().over(
@@ -193,26 +143,16 @@ def gold_peak_hours_analysis():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Route Performance Analysis
-# ============================================================================
-
-@dlt.table(
-    name="gold_route_performance",
-    comment="Popular routes and their performance metrics - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "strategy_team"
-    }
-)
-def gold_route_performance():
+def analyze_route_performance(df: DataFrame) -> DataFrame:
     """
     Analyze performance of popular routes (pickup to dropoff location pairs).
 
-    Target: {CATALOG}.{SCHEMA}.gold_route_performance
-    """
-    df = dlt.read("silver_taxi_trips")
+    Args:
+        df: Silver taxi trips DataFrame
 
+    Returns:
+        DataFrame with route performance metrics
+    """
     return (
         df
         .groupBy("PULocationID", "DOLocationID")
@@ -226,9 +166,7 @@ def gold_route_performance():
             F.sum("total_amount").alias("total_revenue"),
             F.avg("avg_speed_mph").alias("avg_speed")
         )
-        # Filter for statistically significant routes (at least 10 trips)
         .filter(F.col("trip_count") >= 10)
-        # Calculate profitability metrics
         .withColumn(
             "revenue_per_mile",
             F.round(F.col("total_revenue") / (F.col("avg_distance") * F.col("trip_count")), 2)
@@ -237,12 +175,10 @@ def gold_route_performance():
             "revenue_per_minute",
             F.round(F.col("total_revenue") / (F.col("avg_duration") * F.col("trip_count")), 2)
         )
-        # Rank routes by profitability
         .withColumn(
             "profitability_rank",
             F.dense_rank().over(Window.orderBy(F.desc("revenue_per_minute")))
         )
-        # Classify route type
         .withColumn(
             "route_type",
             F.when(F.col("avg_distance") < 2, "Short Distance")
@@ -255,26 +191,16 @@ def gold_route_performance():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Customer Segmentation
-# ============================================================================
-
-@dlt.table(
-    name="gold_customer_segments",
-    comment="Customer behavior segmentation based on trip patterns - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "marketing_team"
-    }
-)
-def gold_customer_segments():
+def segment_customers(df: DataFrame) -> DataFrame:
     """
     Segment customers based on behavior patterns.
 
-    Target: {CATALOG}.{SCHEMA}.gold_customer_segments
-    """
-    df = dlt.read("silver_taxi_trips")
+    Args:
+        df: Silver taxi trips DataFrame
 
+    Returns:
+        DataFrame with customer segmentation
+    """
     return (
         df
         .groupBy("payment_type_name", "time_of_day", "is_weekend")
@@ -286,7 +212,6 @@ def gold_customer_segments():
             F.sum("total_amount").alias("total_revenue"),
             F.avg("passenger_count").alias("avg_passengers")
         )
-        # Calculate customer value metrics
         .withColumn(
             "revenue_contribution_pct",
             F.round(
@@ -294,7 +219,6 @@ def gold_customer_segments():
                 2
             )
         )
-        # Segment classification
         .withColumn(
             "customer_segment",
             F.when(
@@ -313,27 +237,16 @@ def gold_customer_segments():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Weekly Trends
-# ============================================================================
-
-@dlt.table(
-    name="gold_weekly_trends",
-    comment="Week-over-week trend analysis - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "analytics_team"
-    }
-)
-def gold_weekly_trends():
+def calculate_weekly_trends(df: DataFrame) -> DataFrame:
     """
-    Weekly aggregated trends for longer-term analysis.
+    Calculate weekly aggregated trends for longer-term analysis.
 
-    Target: {CATALOG}.{SCHEMA}.gold_weekly_trends
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with weekly trends and week-over-week changes
     """
-    df = dlt.read("silver_taxi_trips")
-
-    # Get week start date (Monday)
     weekly_df = (
         df
         .withColumn("week_start", F.date_trunc("week", "pickup_date"))
@@ -349,7 +262,6 @@ def gold_weekly_trends():
         )
     )
 
-    # Calculate week-over-week changes
     window_spec = Window.orderBy("week_start")
 
     return (
@@ -370,7 +282,6 @@ def gold_weekly_trends():
                 2
             )
         )
-        # Calculate moving averages
         .withColumn(
             "trips_4week_avg",
             F.round(
@@ -408,26 +319,16 @@ def gold_weekly_trends():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Revenue by Time Period
-# ============================================================================
-
-@dlt.table(
-    name="gold_revenue_breakdown",
-    comment="Detailed revenue breakdown for financial reporting - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "finance_team"
-    }
-)
-def gold_revenue_breakdown():
+def breakdown_revenue(df: DataFrame) -> DataFrame:
     """
-    Comprehensive revenue breakdown by various dimensions.
+    Create comprehensive revenue breakdown by various dimensions.
 
-    Target: {CATALOG}.{SCHEMA}.gold_revenue_breakdown
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with detailed revenue breakdown
     """
-    df = dlt.read("silver_taxi_trips")
-
     return (
         df
         .groupBy("pickup_date", "time_of_day", "payment_type_name")
@@ -445,7 +346,6 @@ def gold_revenue_breakdown():
             F.count("*").alias("trip_count"),
             F.sum("trip_distance").alias("total_miles")
         )
-        # Calculate percentages
         .withColumn(
             "base_fare_pct",
             F.round((F.col("base_fare_revenue") / F.col("total_revenue")) * 100, 2)
@@ -454,7 +354,6 @@ def gold_revenue_breakdown():
             "tip_pct",
             F.round((F.col("tip_revenue") / F.col("total_revenue")) * 100, 2)
         )
-        # Calculate per-trip metrics
         .withColumn(
             "avg_revenue_per_trip",
             F.round(F.col("total_revenue") / F.col("trip_count"), 2)
@@ -468,37 +367,23 @@ def gold_revenue_breakdown():
     )
 
 
-# ============================================================================
-# GOLD LAYER - Executive Summary
-# ============================================================================
-
-@dlt.table(
-    name="gold_executive_summary",
-    comment="High-level executive summary metrics - Gold layer",
-    table_properties={
-        "quality": "gold",
-        "business_owner": "executive_team",
-        "sla": "1_hour"
-    }
-)
-def gold_executive_summary():
+def create_executive_summary(df: DataFrame, daily_stats: DataFrame) -> DataFrame:
     """
-    Single-row executive summary with key metrics.
-    Updated with latest available data.
+    Create single-row executive summary with key metrics.
 
-    Target: {CATALOG}.{SCHEMA}.gold_executive_summary
+    Args:
+        df: Silver taxi trips DataFrame
+        daily_stats: Silver daily trip stats DataFrame
+
+    Returns:
+        DataFrame with executive summary metrics
     """
-    df = dlt.read("silver_taxi_trips")
-    daily_stats = dlt.read("silver_daily_trip_stats")
-
-    # Get latest date using window function instead of collect
     latest_metrics = (
         df
         .withColumn("max_date", F.max("pickup_date").over(Window.partitionBy()))
         .filter(F.col("pickup_date") == F.col("max_date"))
     )
 
-    # Get 7-day and 30-day averages using date arithmetic
     summary = (
         latest_metrics
         .agg(
@@ -546,17 +431,16 @@ def gold_executive_summary():
     )
 
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
+def get_gold_table_path(catalog: str, schema: str, table_name: str) -> str:
+    """
+    Get full Unity Catalog path for gold tables.
 
-def get_gold_table_path(table_name):
-    """Helper function to get full Unity Catalog path for gold tables"""
-    return f"{CATALOG}.{SCHEMA}.{table_name}"
+    Args:
+        catalog: Catalog name
+        schema: Schema name
+        table_name: Table name
 
-
-# Print configuration for debugging
-print(f"DLT Gold Layer Configuration:")
-print(f"  Catalog: {CATALOG}")
-print(f"  Schema: {SCHEMA}")
-print(f"  Full table path example: {get_gold_table_path('gold_daily_kpis')}")
+    Returns:
+        Full table path in format: catalog.schema.table
+    """
+    return f"{catalog}.{schema}.{table_name}"

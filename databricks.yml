@@ -16,7 +16,7 @@ variables:
 
   catalog_name:
     description: "Unity Catalog name"
-    default: "main"
+    default: "dev_catalog"
 
   schema_name:
     description: "Schema name within the catalog"
@@ -73,13 +73,10 @@ resources:
         schema_name: "${var.schema_name}"
         project_name: "${var.project_name}"
 
+      # UPDATED: Single entry point for DLT pipeline
       libraries:
         - file:
-            path: ./src/dlt/nyc_taxi_dlt_bronze.py
-        - file:
-            path: ./src/dlt/nyc_taxi_dlt_silver.py
-        - file:
-            path: ./src/dlt/nyc_taxi_dlt_gold.py
+            path: ./src/dlt/dlt_pipeline.py
 
       development: ${var.dlt_development}
       channel: ${var.dlt_channel}

@@ -1,57 +1,24 @@
 """
-NYC Taxi DLT Pipeline - Silver Layer
-Unity Catalog Compatible with Serverless Compute
+NYC Taxi DLT Pipeline - Silver Layer Transformation Functions
+Pure transformation logic without DLT decorators
+
+These functions contain only the transformation logic and return DataFrames.
+They are called by the main dlt_pipeline.py which handles the @dlt decorators.
 """
-import dlt
-from pyspark.sql import functions as F
+from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.window import Window
 
-# Get configuration from DLT pipeline settings
-def get_config(key, default=None):
-    """Safely get configuration from Spark conf"""
-    try:
-        return spark.conf.get(key, default)
-    except Exception:
-        return default
 
-# Configuration
-CATALOG = get_config("catalog_name", "dev_catalog")
-SCHEMA = get_config("schema_name", "nyc_taxi_dev")
-ENVIRONMENT = get_config("environment_suffix", "")
-
-
-# ============================================================================
-# SILVER LAYER - Cleaned and Validated Data
-# ============================================================================
-
-@dlt.table(
-    name="silver_taxi_trips",
-    comment="Cleaned and validated taxi trip data - Silver layer",
-    table_properties={
-        "quality": "silver",
-        "pipelines.autoOptimize.managed": "true",
-        "delta.enableChangeDataFeed": "true"
-    },
-    partition_cols=["pickup_date"]
-)
-@dlt.expect_all_or_drop({
-    "valid_trip_distance": "trip_distance > 0 AND trip_distance < 100",
-    "valid_passenger_count": "passenger_count > 0 AND passenger_count <= 6",
-    "valid_fare": "fare_amount > 0 AND fare_amount < 500",
-    "valid_duration": "trip_duration_minutes > 0 AND trip_duration_minutes < 180",
-    "valid_speed": "avg_speed_mph > 0 AND avg_speed_mph < 80",
-    "logical_timestamps": "tpep_pickup_datetime < tpep_dropoff_datetime"
-})
-def silver_taxi_trips():
+def clean_and_validate_trips(df: DataFrame) -> DataFrame:
     """
-    Cleaned taxi trip data with strict quality expectations.
-    Drops records that don't meet silver layer standards.
+    Clean and validate taxi trip data with strict quality standards.
 
-    Target: {CATALOG}.{SCHEMA}.silver_taxi_trips
+    Args:
+        df: Bronze enriched DataFrame
+
+    Returns:
+        Cleaned and validated DataFrame ready for silver layer
     """
-    # Read from bronze enriched table
-    df = dlt.read("bronze_taxi_enriched")
-
     return (
         df
         # Filter out suspicious records
@@ -64,7 +31,7 @@ def silver_taxi_trips():
             "DOLocationID",
             "passenger_count"
         ])
-        # Standardize and clean data
+        # Standardize payment type
         .withColumn(
             "payment_type_name",
             F.when(F.col("payment_type") == 1, "Credit Card")
@@ -73,6 +40,7 @@ def silver_taxi_trips():
             .when(F.col("payment_type") == 4, "Dispute")
             .otherwise("Unknown")
         )
+        # Standardize rate code
         .withColumn(
             "rate_code_name",
             F.when(F.col("RatecodeID") == 1, "Standard")
@@ -141,28 +109,17 @@ def silver_taxi_trips():
         )
     )
 
-# ============================================================================
-# SILVER LAYER - Aggregated Daily Stats
-# ============================================================================
 
-@dlt.table(
-    name="silver_daily_trip_stats",
-    comment="Daily aggregated trip statistics - Silver layer",
-    table_properties={
-        "quality": "silver",
-        "pipelines.autoOptimize.managed": "true"
-    },
-    partition_cols=["pickup_date"]
-)
-def silver_daily_trip_stats():
+def aggregate_daily_stats(df: DataFrame) -> DataFrame:
     """
-    Daily aggregated statistics for taxi trips.
-    Useful for trend analysis and reporting.
+    Calculate daily aggregated trip statistics.
 
-    Target: {CATALOG}.{SCHEMA}.silver_daily_trip_stats
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with daily aggregated metrics
     """
-    df = dlt.read("silver_taxi_trips")
-
     return (
         df
         .groupBy("pickup_date")
@@ -216,28 +173,17 @@ def silver_daily_trip_stats():
         )
     )
 
-# ============================================================================
-# SILVER LAYER - Hourly Stats by Location
-# ============================================================================
 
-@dlt.table(
-    name="silver_hourly_location_stats",
-    comment="Hourly trip statistics by pickup location - Silver layer",
-    table_properties={
-        "quality": "silver",
-        "pipelines.autoOptimize.managed": "true"
-    },
-    partition_cols=["pickup_date"]
-)
-def silver_hourly_location_stats():
+def aggregate_hourly_location_stats(df: DataFrame) -> DataFrame:
     """
-    Hourly statistics aggregated by pickup location.
-    Useful for location-based analysis and demand forecasting.
+    Calculate hourly statistics by pickup location.
 
-    Target: {CATALOG}.{SCHEMA}.silver_hourly_location_stats
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with hourly location-based metrics
     """
-    df = dlt.read("silver_taxi_trips")
-
     return (
         df
         .groupBy("pickup_date", "pickup_hour", "PULocationID")
@@ -260,25 +206,17 @@ def silver_hourly_location_stats():
         )
     )
 
-# ============================================================================
-# SILVER LAYER - Payment Analysis
-# ============================================================================
 
-@dlt.table(
-    name="silver_payment_analysis",
-    comment="Payment method analysis with tipping patterns - Silver layer",
-    table_properties={
-        "quality": "silver"
-    }
-)
-def silver_payment_analysis():
+def analyze_payment_patterns(df: DataFrame) -> DataFrame:
     """
-    Analysis of payment methods and tipping behavior.
+    Analyze payment methods and tipping behavior.
 
-    Target: {CATALOG}.{SCHEMA}.silver_payment_analysis
+    Args:
+        df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with payment analysis metrics
     """
-    df = dlt.read("silver_taxi_trips")
-
     return (
         df
         .groupBy("pickup_date", "payment_type_name", "time_of_day")
@@ -300,26 +238,25 @@ def silver_payment_analysis():
         )
     )
 
-# ============================================================================
-# SILVER LAYER - Data Quality Checks
-# ============================================================================
 
-@dlt.table(
-    name="silver_data_quality",
-    comment="Data quality metrics for silver layer",
-    table_properties={
-        "quality": "metrics"
-    }
-)
-def silver_data_quality():
-    bronze_df = dlt.read(f"bronze_taxi_enriched")
-    silver_df = dlt.read(f"silver_taxi_trips")
+def calculate_silver_quality_metrics(bronze_df: DataFrame, silver_df: DataFrame) -> DataFrame:
+    """
+    Calculate data quality metrics comparing bronze and silver layers.
+
+    Args:
+        bronze_df: Bronze enriched DataFrame
+        silver_df: Silver taxi trips DataFrame
+
+    Returns:
+        DataFrame with quality metrics
+    """
+    from pyspark.sql import SparkSession
+    spark = SparkSession.builder.getOrCreate()
 
     bronze_count = bronze_df.count()
     silver_count = silver_df.count()
     pass_rate = round((silver_count / bronze_count) * 100, 2) if bronze_count > 0 else 0
 
-    # Use SQL to create the dataframe instead
     return spark.sql(f"""
         SELECT 
             current_date() as date,
@@ -329,16 +266,18 @@ def silver_data_quality():
             {bronze_count - silver_count} as records_dropped,
             current_timestamp() as check_timestamp
     """)
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
 
-def get_silver_table_path(table_name):
-    """Helper function to get full Unity Catalog path for silver tables"""
-    return f"{CATALOG}.{SCHEMA}.{table_name}"
 
-# Print configuration for debugging
-print(f"DLT Silver Layer Configuration:")
-print(f"  Catalog: {CATALOG}")
-print(f"  Schema: {SCHEMA}")
-print(f"  Full table path example: {get_silver_table_path('silver_taxi_trips')}")
+def get_silver_table_path(catalog: str, schema: str, table_name: str) -> str:
+    """
+    Get full Unity Catalog path for silver tables.
+
+    Args:
+        catalog: Catalog name
+        schema: Schema name
+        table_name: Table name
+
+    Returns:
+        Full table path in format: catalog.schema.table
+    """
+    return f"{catalog}.{schema}.{table_name}"
