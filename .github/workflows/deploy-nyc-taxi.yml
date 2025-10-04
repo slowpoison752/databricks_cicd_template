@@ -3,7 +3,7 @@ name: Deploy NYC Taxi Pipeline
 on:
   push:
     branches:
-      - master
+      - main
       - develop
     paths:
       - 'projects/nyc_taxi/**'
@@ -11,7 +11,6 @@ on:
 
   pull_request:
     branches:
-      - master
       - main
     paths:
       - 'projects/nyc_taxi/**'
@@ -21,7 +20,8 @@ on:
 
 env:
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
 jobs:
   deploy-nyc-taxi:
@@ -38,7 +38,13 @@ jobs:
 
       - name: Install Databricks CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/master/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Authenticate with Service Principal
+        run: |
+          databricks auth login --host ${{ secrets.DATABRICKS_HOST }} \
+            --client-id ${{ secrets.DATABRICKS_CLIENT_ID }} \
+            --client-secret ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
       - name: Validate bundle
         run: |
