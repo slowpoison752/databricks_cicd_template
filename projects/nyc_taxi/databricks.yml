@@ -1,9 +1,9 @@
 bundle:
   name: nyc-taxi-pipeline
 
+# Include resource files from this project
 include:
-  - resources: ../../databricks.yml
-  - resources: ./resources/*.yml
+  - ./resources/*.yml
 
 variables:
   project_name:
@@ -25,3 +25,28 @@ variables:
   dlt_pipeline_name:
     description: "Name of the DLT pipeline"
     default: "NYC Taxi DLT Pipeline"
+
+  notification_email:
+    description: "Email for notifications"
+    default: "data-engineering@company.com"
+
+  spark_version:
+    description: "Databricks runtime version"
+    default: "14.3.x-scala2.12"
+
+  default_node_type:
+    description: "Default node type for clusters"
+    default: "Standard_DS3_v2"
+
+# Define targets here since we're not inheriting from base
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/dev
+
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/prod
