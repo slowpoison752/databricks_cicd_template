@@ -15,7 +15,7 @@ resources:
         - file:
             path: ../src/dlt/dlt_pipeline.py
 
-      development: true
+      development: false
       channel: CURRENT
       edition: ADVANCED
       continuous: false
