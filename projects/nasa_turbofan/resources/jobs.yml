@@ -1,24 +1,5 @@
 resources:
   jobs:
-    sync_nasa_turbofan_code:
-      name: "[${bundle.target}] Sync NASA Turbofan Code"
-
-      tasks:
-        - task_key: sync_code
-          spark_python_task:
-            python_file: ../../shared/scripts/sync_project_code.py
-            parameters:
-              - "--repo-url"
-              - "${var.project_repo_url}"
-              - "--repo-ref"
-              - "${var.project_repo_ref}"
-              - "--target-path"
-              - "${var.project_workspace_path}"
-          existing_cluster_id: "${var.admin_cluster_id}"
-          timeout_seconds: 600
-
-      max_concurrent_runs: 1
-
     nasa_turbofan_batch_ingestion:
       name: "[${bundle.target}] NASA Turbofan - Batch Ingestion"
 
@@ -55,6 +36,8 @@ resources:
               - "${var.schema_name}"
               - "--data-url"
               - "${var.bearing_data_url}"
+              - "--landing-path"
+              - "${var.landing_zone_path}"
           job_cluster_key: ingestion_cluster
           timeout_seconds: 3600
 
@@ -106,7 +89,6 @@ resources:
         - task_key: refresh_dlt_pipeline
           pipeline_task:
             pipeline_id: "${resources.pipelines.turbofan_dlt_pipeline.id}"
-            full_refresh: false
           timeout_seconds: 7200
 
       schedule:
@@ -134,3 +116,22 @@ resources:
           depends_on:
             - task_key: optimize_delta_tables
           notebook_task:
+            notebook_path: ${var.project_workspace_path}/src/notebooks/vacuum_tables
+            base_parameters:
+              catalog: "${var.catalog_name}"
+              schema: "${var.schema_name}"
+              retention_hours: "168"
+          job_cluster_key: maintenance_cluster
+
+      job_clusters:
+        - job_cluster_key: maintenance_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.default_node_type}
+            num_workers: 2
+            data_security_mode: SINGLE_USER
+
+      schedule:
+        quartz_cron_expression: "0 0 4 * * 0"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"

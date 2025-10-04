@@ -1,14 +1,13 @@
 resources:
   clusters:
-    # Interactive cluster for development/exploration
-    nasa_turbofan_dev_cluster:
+    nasa_turbofan_interactive:
       cluster_name: "[${bundle.target}] NASA Turbofan - Interactive"
       spark_version: ${var.spark_version}
       node_type_id: ${var.default_node_type}
 
       autoscale:
-        min_workers: ${{ bundle.target == 'dev' ? 0 : 1 }}
-        max_workers: ${{ bundle.target == 'dev' ? 2 : 4 }}
+        min_workers: 0
+        max_workers: 4
 
       autotermination_minutes: 30
 
@@ -16,10 +15,9 @@ resources:
 
       spark_conf:
         spark.databricks.unityCatalog.enabled: "true"
-        spark.databricks.cluster.profile: ${{ bundle.target == 'dev' ? 'singleNode' : 'standard' }}
         spark.databricks.delta.preview.enabled: "true"
 
       custom_tags:
         project: "${var.project_name}"
         environment: "${bundle.target}"
-        purpose: "interactive_development"
+        purpose: "interactive"

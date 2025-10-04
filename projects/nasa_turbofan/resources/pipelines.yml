@@ -3,8 +3,6 @@ resources:
     turbofan_dlt_pipeline:
       name: "Turbofan Predictive Maintenance - ${bundle.target}"
       target: "${var.schema_name}"
-
-      # Serverless based on environment
       serverless: true
 
       configuration:
@@ -16,24 +14,13 @@ resources:
 
       libraries:
         - file:
-            path: ${var.project_workspace_path}/src/dlt/turbofan_pipeline.py
+            path: ${var.project_workspace_path}/src/dlt/dlt_pipeline.py
 
-      # These will be overridden by environment variables
-      development: true
+      development: false
       continuous: false
-
       channel: CURRENT
       edition: ADVANCED
       catalog: ${var.catalog_name}
-
-      clusters:
-        - label: default
-          autoscale:
-            min_workers: 1
-            max_workers: 4
-          spark_conf:
-            spark.databricks.delta.optimizeWrite.enabled: "true"
-            spark.databricks.delta.autoCompact.enabled: "true"
 
       notifications:
         - email_recipients:

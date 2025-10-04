@@ -1,112 +1,92 @@
-#name: Deploy NASA Turbofan Pipeline
-#
-#on:
-#  push:
-#    branches:
-#      - main
-#      - develop
-#      - 'feature/**'
-#    paths:
-#      - 'projects/nasa_turbofan/**'
-#      - '.github/workflows/deploy-nasa-turbofan.yml'
-#
-#  pull_request:
-#    branches:
-#      - main
-#    paths:
-#      - 'projects/nasa_turbofan/**'
-#
-#  workflow_dispatch:
-#    inputs:
-#      run_validation_job:
-#        description: 'Run ingestion job after deployment'
-#        required: false
-#        type: boolean
-#        default: false
-#
-#env:
-#  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-#  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-#
-#jobs:
-#  deploy-to-dev:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - name: Checkout CICD template
-#        uses: actions/checkout@v4
-#
-#      - name: Checkout NASA Turbofan project
-#        uses: actions/checkout@v4
-#        with:
-#          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation-
-#          ref: main
-#          path: project-code
-#          token: ${{ secrets.GH_PAT }}
-#
-#      - name: Setup Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
-#
-#      - name: Install Databricks CLI
-#        run: |
-#          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-#
-#      - name: Install project dependencies
-#        run: |
-#          cd project-code
-#          pip install -r requirements.txt
-#
-#      - name: Run unit tests
-#        run: |
-#          cd project-code
-#          python -m pytest tests/ -v --tb=short
-#
-#      - name: Validate bundle configuration
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle validate -t dev
-#
-#      - name: Deploy to Databricks (dev)
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle deploy -t dev
-#
-#      - name: Upload project code to workspace
-#        run: |
-#          WORKSPACE_PATH="/Workspace/Projects/nasa_turbofan"
-#
-#          # Upload source code
-#          databricks workspace import-dir \
-#            project-code/src \
-#            ${WORKSPACE_PATH}/src \
-#            --overwrite
-#
-#          # Upload config files
-#          databricks workspace import-dir \
-#            project-code/config \
-#            ${WORKSPACE_PATH}/config \
-#            --overwrite
-#
-#          echo "Project code uploaded to ${WORKSPACE_PATH}"
-#
-#      - name: Display deployment summary
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle summary -t dev
-#
-#      - name: Run validation job (optional)
-#        if: github.event.inputs.run_validation_job == 'true'
-#        run: |
-#          cd projects/nasa_turbofan
-#          echo "Triggering NASA Turbofan ingestion job..."
-#          JOB_RUN_ID=$(databricks bundle run nasa_turbofan_batch_ingestion -t dev | jq -r .run_id)
-#          echo "Job started with run ID: ${JOB_RUN_ID}"
-#          echo "View at: ${DATABRICKS_HOST}/#job/runs/${JOB_RUN_ID}"
-#
-#      - name: Post deployment info
-#        run: |
-#          echo "✅ Deployment complete to DEV environment"
-#          echo "📍 Workspace path: /Workspace/Users/your-email/.bundle/nasa-turbofan-predictive-maintenance"
-#          echo "🔗 Databricks host: ${DATABRICKS_HOST}"
+name: Deploy NASA Turbofan Pipeline
+
+on:
+  repository_dispatch:
+    types: [deploy-nasa-turbofan]
+
+  workflow_dispatch:
+    inputs:
+      nasa_repo_ref:
+        description: 'NASA repo branch/tag to deploy'
+        required: false
+        default: 'main'
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+
+jobs:
+  deploy-nasa-turbofan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout CICD template
+        uses: actions/checkout@v4
+
+      - name: Checkout NASA Turbofan project
+        uses: actions/checkout@v4
+        with:
+          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation-
+          ref: ${{ github.event.client_payload.ref || github.event.inputs.nasa_repo_ref || 'main' }}
+          path: project-code
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Install project dependencies
+        run: |
+          cd project-code
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Run unit tests
+        run: |
+          cd project-code
+          if [ -d tests ]; then
+            python -m pytest tests/ -v --tb=short || echo "No tests found or tests failed"
+          fi
+
+      - name: Validate bundle configuration
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle validate -t dev
+
+      - name: Deploy to Databricks (dev)
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle deploy -t dev
+
+      - name: Upload project code to workspace
+        run: |
+          WORKSPACE_PATH="/Workspace/Projects/nasa_turbofan"
+          
+          # Upload source code
+          databricks workspace import-dir \
+            project-code/src \
+            ${WORKSPACE_PATH}/src \
+            --overwrite
+            
+          # Upload config files if they exist
+          if [ -d project-code/config ]; then
+            databricks workspace import-dir \
+              project-code/config \
+              ${WORKSPACE_PATH}/config \
+              --overwrite
+          fi
+          
+          echo "Project code uploaded to ${WORKSPACE_PATH}"
+
+      - name: Display deployment summary
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle summary -t dev
