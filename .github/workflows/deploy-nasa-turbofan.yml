@@ -1,92 +1,92 @@
-#name: Deploy NASA Turbofan Pipeline
-#
-#on:
-#  repository_dispatch:
-#    types: [deploy-nasa-turbofan]
-#
-#  workflow_dispatch:
-#    inputs:
-#      nasa_repo_ref:
-#        description: 'NASA repo branch/tag to deploy'
-#        required: false
-#        default: 'main'
-#
-#env:
-#  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-#  ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-#  ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-#  ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
-#
-#jobs:
-#  deploy-nasa-turbofan:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - name: Checkout CICD template
-#        uses: actions/checkout@v4
-#
-#      - name: Checkout NASA Turbofan project
-#        uses: actions/checkout@v4
-#        with:
-#          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation
-#          ref: ${{ github.event.client_payload.ref || github.event.inputs.nasa_repo_ref || 'main' }}
-#          path: project-code
-#          token: ${{ secrets.GH_PAT }}
-#
-#      - name: Setup Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
-#
-#      - name: Install Databricks CLI
-#        run: |
-#          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-#
-#      - name: Install project dependencies
-#        run: |
-#          cd project-code
-#          if [ -f requirements.txt ]; then
-#            pip install -r requirements.txt
-#          fi
-#
-#      - name: Run unit tests
-#        run: |
-#          cd project-code
-#          if [ -d tests ]; then
-#            python -m pytest tests/ -v --tb=short || echo "No tests found or tests failed"
-#          fi
-#
-#      - name: Validate bundle configuration
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle validate -t dev
-#
-#      - name: Deploy to Databricks (dev)
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle deploy -t dev
-#
-#      - name: Upload project code to workspace
-#        run: |
-#          WORKSPACE_PATH="/Workspace/Projects/nasa_turbofan"
-#
-#          # Upload source code
-#          databricks workspace import-dir \
-#            project-code/src \
-#            ${WORKSPACE_PATH}/src \
-#            --overwrite
-#
-#          # Upload config files if they exist
-#          if [ -d project-code/config ]; then
-#            databricks workspace import-dir \
-#              project-code/config \
-#              ${WORKSPACE_PATH}/config \
-#              --overwrite
-#          fi
-#
-#          echo "Project code uploaded to ${WORKSPACE_PATH}"
-#
-#      - name: Display deployment summary
-#        run: |
-#          cd projects/nasa_turbofan
-#          databricks bundle summary -t dev
+name: Deploy NASA Turbofan Pipeline
+
+on:
+  repository_dispatch:
+    types: [deploy-nasa-turbofan]
+
+  workflow_dispatch:
+    inputs:
+      nasa_repo_ref:
+        description: 'NASA repo branch/tag to deploy'
+        required: false
+        default: 'main'
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+
+jobs:
+  deploy-nasa-turbofan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout CICD template
+        uses: actions/checkout@v4
+
+      - name: Checkout NASA Turbofan project
+        uses: actions/checkout@v4
+        with:
+          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation
+          ref: ${{ github.event.client_payload.ref || github.event.inputs.nasa_repo_ref || 'main' }}
+          path: project-code
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Install project dependencies
+        run: |
+          cd project-code
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Run unit tests
+        run: |
+          cd project-code
+          if [ -d tests ]; then
+            python -m pytest tests/ -v --tb=short || echo "No tests found or tests failed"
+          fi
+
+      - name: Validate bundle configuration
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle validate -t dev
+
+      - name: Deploy to Databricks (dev)
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle deploy -t dev
+
+      - name: Upload project code to workspace
+        run: |
+          WORKSPACE_PATH="/Workspace/Projects/nasa_turbofan"
+
+          # Upload source code
+          databricks workspace import-dir \
+            project-code/src \
+            ${WORKSPACE_PATH}/src \
+            --overwrite
+
+          # Upload config files if they exist
+          if [ -d project-code/config ]; then
+            databricks workspace import-dir \
+              project-code/config \
+              ${WORKSPACE_PATH}/config \
+              --overwrite
+          fi
+
+          echo "Project code uploaded to ${WORKSPACE_PATH}"
+
+      - name: Display deployment summary
+        run: |
+          cd projects/nasa_turbofan
+          databricks bundle summary -t dev

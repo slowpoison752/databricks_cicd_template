@@ -1,57 +1,57 @@
-name: Deploy NYC Taxi Pipeline
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'projects/nyc_taxi/**'
-      - '.github/workflows/deploy-nyc-taxi.yml'
-
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'projects/nyc_taxi/**'
-
-  workflow_dispatch:
-    inputs: {}
-
-env:
-  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-  ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
-
-jobs:
-  deploy-nyc-taxi:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Databricks CLI
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-
-      - name: Validate bundle
-        run: |
-          cd projects/nyc_taxi
-          databricks bundle validate -t dev
-
-      - name: Deploy to Databricks
-        run: |
-          cd projects/nyc_taxi
-          databricks bundle deploy -t dev
-
-      - name: Show deployment summary
-        run: |
-          cd projects/nyc_taxi
-          databricks bundle summary -t dev
+#name: Deploy NYC Taxi Pipeline
+#
+#on:
+#  push:
+#    branches:
+#      - main
+#      - develop
+#    paths:
+#      - 'projects/nyc_taxi/**'
+#      - '.github/workflows/deploy-nyc-taxi.yml'
+#
+#  pull_request:
+#    branches:
+#      - main
+#    paths:
+#      - 'projects/nyc_taxi/**'
+#
+#  workflow_dispatch:
+#    inputs: {}
+#
+#env:
+#  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+#  ARM_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+#  ARM_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+#  ARM_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
+#
+#jobs:
+#  deploy-nyc-taxi:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Setup Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: '3.10'
+#
+#      - name: Install Databricks CLI
+#        run: |
+#          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+#
+#      - name: Validate bundle
+#        run: |
+#          cd projects/nyc_taxi
+#          databricks bundle validate -t dev
+#
+#      - name: Deploy to Databricks
+#        run: |
+#          cd projects/nyc_taxi
+#          databricks bundle deploy -t dev
+#
+#      - name: Show deployment summary
+#        run: |
+#          cd projects/nyc_taxi
+#          databricks bundle summary -t dev
