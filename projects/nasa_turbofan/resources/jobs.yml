@@ -1,0 +1,136 @@
+resources:
+  jobs:
+    sync_nasa_turbofan_code:
+      name: "[${bundle.target}] Sync NASA Turbofan Code"
+
+      tasks:
+        - task_key: sync_code
+          spark_python_task:
+            python_file: ../../shared/scripts/sync_project_code.py
+            parameters:
+              - "--repo-url"
+              - "${var.project_repo_url}"
+              - "--repo-ref"
+              - "${var.project_repo_ref}"
+              - "--target-path"
+              - "${var.project_workspace_path}"
+          existing_cluster_id: "${var.admin_cluster_id}"
+          timeout_seconds: 600
+
+      max_concurrent_runs: 1
+
+    nasa_turbofan_batch_ingestion:
+      name: "[${bundle.target}] NASA Turbofan - Batch Ingestion"
+
+      tasks:
+        - task_key: ingest_nasa_data
+          spark_python_task:
+            python_file: ${var.project_workspace_path}/src/jobs/nasa_data_ingestion.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--data-url"
+              - "${var.nasa_data_url}"
+              - "--landing-path"
+              - "${var.landing_zone_path}"
+          job_cluster_key: ingestion_cluster
+          timeout_seconds: 3600
+          libraries:
+            - pypi:
+                package: "requests"
+            - pypi:
+                package: "pyyaml"
+
+        - task_key: ingest_bearing_data
+          depends_on:
+            - task_key: ingest_nasa_data
+          spark_python_task:
+            python_file: ${var.project_workspace_path}/src/jobs/bearing_data_ingestion.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--data-url"
+              - "${var.bearing_data_url}"
+          job_cluster_key: ingestion_cluster
+          timeout_seconds: 3600
+
+        - task_key: data_quality_check
+          depends_on:
+            - task_key: ingest_nasa_data
+            - task_key: ingest_bearing_data
+          spark_python_task:
+            python_file: ${var.project_workspace_path}/src/jobs/data_quality_check.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--tables"
+              - "turbofan_bronze_batch,bearing_bronze_batch"
+          job_cluster_key: ingestion_cluster
+
+      job_clusters:
+        - job_cluster_key: ingestion_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.default_node_type}
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.databricks.unityCatalog.enabled: "true"
+              spark.databricks.delta.optimizeWrite.enabled: "true"
+              spark.databricks.delta.autoCompact.enabled: "true"
+            custom_tags:
+              project: "${var.project_name}"
+              environment: "${bundle.target}"
+
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    run_turbofan_dlt:
+      name: "[${bundle.target}] NASA Turbofan - DLT Execution"
+
+      tasks:
+        - task_key: refresh_dlt_pipeline
+          pipeline_task:
+            pipeline_id: "${resources.pipelines.turbofan_dlt_pipeline.id}"
+            full_refresh: false
+          timeout_seconds: 7200
+
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    optimize_turbofan_tables:
+      name: "[${bundle.target}] NASA Turbofan - Table Optimization"
+
+      tasks:
+        - task_key: optimize_delta_tables
+          notebook_task:
+            notebook_path: ${var.project_workspace_path}/src/notebooks/optimize_tables
+            base_parameters:
+              catalog: "${var.catalog_name}"
+              schema: "${var.schema_name}"
+          job_cluster_key: maintenance_cluster
+
+        - task_key: vacuum_old_data
+          depends_on:
+            - task_key: optimize_delta_tables
+          notebook_task:

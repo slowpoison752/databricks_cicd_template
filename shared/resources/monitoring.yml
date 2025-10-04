@@ -1,0 +1,12 @@
+resources:
+  jobs:
+    # Generic monitoring job used by all projects
+    data_quality_monitoring:
+      name: "[${bundle.target}] Data Quality Monitor"
+
+      tasks:
+        - task_key: generate_quality_report
+          notebook_task:
+            notebook_path: ./shared/notebooks/quality_dashboard
+            base_parameters:
+              catalog: "${var.catalog_name}"
