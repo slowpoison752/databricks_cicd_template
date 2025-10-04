@@ -9,6 +9,12 @@ on:
       - 'projects/nyc_taxi/**'
       - '.github/workflows/deploy-nyc-taxi.yml'
 
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'projects/nyc_taxi/**'
+
   workflow_dispatch:
 
 env:
