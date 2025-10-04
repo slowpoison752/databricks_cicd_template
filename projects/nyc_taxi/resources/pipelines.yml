@@ -1,0 +1,29 @@
+resources:
+  pipelines:
+    nyc_taxi_dlt_pipeline:
+      name: "${var.dlt_pipeline_name} - ${bundle.target}"
+      target: "${var.schema_name}"
+      serverless: true
+
+      configuration:
+        source_path: "${var.source_data_path}"
+        catalog_name: "${var.catalog_name}"
+        schema_name: "${var.schema_name}"
+        project_name: "${var.project_name}"
+
+      libraries:
+        - file:
+            path: ./src/dlt/dlt_pipeline.py
+
+      development: true
+      channel: CURRENT
+      edition: ADVANCED
+      continuous: false
+      catalog: ${var.catalog_name}
+
+      notifications:
+        - email_recipients:
+            - ${var.notification_email}
+          alerts:
+            - "on-update-failure"
+            - "on-flow-failure"
