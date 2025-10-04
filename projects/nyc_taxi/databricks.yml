@@ -39,12 +39,10 @@ variables:
 
 targets:
   dev:
-    mode: development
+    mode: production
     default: true
     workspace:
       root_path: /Workspace/Shared/.bundle/${bundle.name}/dev
-      # Use service principal for deployment
-      # Note: Service principal must have workspace permissions
 
   prod:
     mode: production
