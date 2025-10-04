@@ -40,12 +40,6 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/master/install.sh | sh
 
-      - name: Authenticate with Service Principal
-        run: |
-          databricks auth login --host ${{ secrets.DATABRICKS_HOST }} \
-            --client-id ${{ secrets.DATABRICKS_CLIENT_ID }} \
-            --client-secret ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-
       - name: Validate bundle
         run: |
           cd projects/nyc_taxi
