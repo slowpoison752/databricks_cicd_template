@@ -13,7 +13,7 @@ resources:
 
       libraries:
         - file:
-            path: ./src/dlt/dlt_pipeline.py
+            path: ../src/dlt/dlt_pipeline.py
 
       development: true
       channel: CURRENT
