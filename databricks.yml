@@ -1,26 +1,39 @@
 bundle:
-  name: test-deployment
+  name: base-deployment-template
 
-environments:
+variables:
+  notification_email:
+    description: "Email for notifications"
+    default: "data-engineering@company.com"
+
+  spark_version:
+    description: "Databricks runtime version"
+    default: "14.3.x-scala2.12"
+
+  environment_suffix:
+    description: "Environment suffix for feature branches"
+    default: ""
+
+  default_node_type:
+    description: "Default node type for clusters"
+    default: "Standard_DS3_v2"
+
+  admin_cluster_id:
+    description: "Existing cluster ID for admin tasks"
+    default: ""
+
+include:
+  - resources: ./shared/resources/*.yml
+
+targets:
   dev:
+    mode: development
     default: true
     workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
 
-resources:
-  jobs:
-    hello_job:
-      name: Hello Databricks Job
-      tasks:
-        - task_key: hello_task
-          new_cluster:
-            spark_version: 13.3.x-scala2.12
-            node_type_id: Standard_D4s_v3
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: local[*]
-            custom_tags:
-              ResourceClass: SingleNode
-          spark_python_task:
-            python_file: ./src/hello_databricks.py
+  # Prod config kept as reference - not used for this project
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/prod

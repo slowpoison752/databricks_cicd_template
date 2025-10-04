@@ -1,0 +1,62 @@
+resources:
+  jobs:
+    nyc_taxi_bronze_ingestion:
+      name: "[${bundle.target}] NYC Taxi - Bronze Ingestion"
+
+      tasks:
+        - task_key: bronze_ingestion
+          spark_python_task:
+            python_file: ../src/jobs/bronze_ingestion.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--source-path"
+              - "${var.source_data_path}"
+          timeout_seconds: 3600
+          job_cluster_key: main_cluster
+
+      job_clusters:
+        - job_cluster_key: main_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.default_node_type}
+            num_workers: 0
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.databricks.unityCatalog.enabled: "true"
+              spark.databricks.cluster.profile: "singleNode"
+              spark.master: "local[*]"
+            custom_tags:
+              project: "${var.project_name}"
+              environment: "${bundle.target}"
+              ResourceClass: "SingleNode"
+
+      schedule:
+        quartz_cron_expression: "0 0 1 * * ?"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    run_nyc_taxi_dlt:
+      name: "[${bundle.target}] NYC Taxi - DLT Pipeline"
+
+      tasks:
+        - task_key: trigger_dlt_pipeline
+          pipeline_task:
+            pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
+            full_refresh: false
+          timeout_seconds: 7200
+
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}

@@ -5,7 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "databricks-test"
 version = "0.1.0"
-description = "Test deployment"
+description = "Databricks CI/CD Template - NYC Taxi Pipeline"
+dependencies = [
+    "databricks-cli>=0.17.0",
+    "pyspark>=3.4.0"
+]
 
 [project.entry-points."databricks.jobs"]
 hello_databricks = "src.hello_databricks:main"
+bronze_ingestion = "src.jobs.bronze_ingestion:main"
