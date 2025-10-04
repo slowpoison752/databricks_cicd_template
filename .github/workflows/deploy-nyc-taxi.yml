@@ -3,7 +3,7 @@ name: Deploy NYC Taxi Pipeline
 on:
   push:
     branches:
-      - main
+      - master
       - develop
     paths:
       - 'projects/nyc_taxi/**'
@@ -11,7 +11,7 @@ on:
 
   pull_request:
     branches:
-      - main
+      - master
     paths:
       - 'projects/nyc_taxi/**'
 
@@ -38,7 +38,7 @@ jobs:
 
       - name: Install Databricks CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/master/install.sh | sh
 
       - name: Authenticate with Service Principal
         run: |
