@@ -100,38 +100,38 @@ resources:
         on_failure:
           - ${var.notification_email}
 
-    optimize_turbofan_tables:
-      name: "[${bundle.target}] NASA Turbofan - Table Optimization"
-
-      tasks:
-        - task_key: optimize_delta_tables
-          notebook_task:
-            notebook_path: ${var.project_workspace_path}/src/notebooks/optimize_tables
-            base_parameters:
-              catalog: "${var.catalog_name}"
-              schema: "${var.schema_name}"
-          job_cluster_key: maintenance_cluster
-
-        - task_key: vacuum_old_data
-          depends_on:
-            - task_key: optimize_delta_tables
-          notebook_task:
-            notebook_path: ${var.project_workspace_path}/src/notebooks/vacuum_tables
-            base_parameters:
-              catalog: "${var.catalog_name}"
-              schema: "${var.schema_name}"
-              retention_hours: "168"
-          job_cluster_key: maintenance_cluster
-
-      job_clusters:
-        - job_cluster_key: maintenance_cluster
-          new_cluster:
-            spark_version: ${var.spark_version}
-            node_type_id: ${var.default_node_type}
-            num_workers: 2
-            data_security_mode: SINGLE_USER
-
-      schedule:
-        quartz_cron_expression: "0 0 4 * * 0"
-        timezone_id: "UTC"
-        pause_status: "PAUSED"
+#    optimize_turbofan_tables:
+#      name: "[${bundle.target}] NASA Turbofan - Table Optimization"
+#
+#      tasks:
+#        - task_key: optimize_delta_tables
+#          notebook_task:
+#            notebook_path: ${var.project_workspace_path}/src/notebooks/optimize_tables
+#            base_parameters:
+#              catalog: "${var.catalog_name}"
+#              schema: "${var.schema_name}"
+#          job_cluster_key: maintenance_cluster
+#
+#        - task_key: vacuum_old_data
+#          depends_on:
+#            - task_key: optimize_delta_tables
+#          notebook_task:
+#            notebook_path: ${var.project_workspace_path}/src/notebooks/vacuum_tables
+#            base_parameters:
+#              catalog: "${var.catalog_name}"
+#              schema: "${var.schema_name}"
+#              retention_hours: "168"
+#          job_cluster_key: maintenance_cluster
+#
+#      job_clusters:
+#        - job_cluster_key: maintenance_cluster
+#          new_cluster:
+#            spark_version: ${var.spark_version}
+#            node_type_id: ${var.default_node_type}
+#            num_workers: 2
+#            data_security_mode: SINGLE_USER
+#
+#      schedule:
+#        quartz_cron_expression: "0 0 4 * * 0"
+#        timezone_id: "UTC"
+#        pause_status: "PAUSED"
