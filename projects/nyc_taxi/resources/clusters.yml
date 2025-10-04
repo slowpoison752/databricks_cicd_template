@@ -15,7 +15,6 @@ resources:
 
       spark_conf:
         spark.databricks.unityCatalog.enabled: "true"
-        spark.databricks.cluster.profile: "singleNode"
         spark.databricks.delta.preview.enabled: "true"
 
       custom_tags:

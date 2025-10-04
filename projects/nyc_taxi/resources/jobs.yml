@@ -22,12 +22,10 @@ resources:
           new_cluster:
             spark_version: ${var.spark_version}
             node_type_id: ${var.default_node_type}
-            num_workers: 0
+            num_workers: 1
             data_security_mode: SINGLE_USER
             spark_conf:
               spark.databricks.unityCatalog.enabled: "true"
-              spark.databricks.cluster.profile: "singleNode"
-              spark.master: "local[*]"
             custom_tags:
               project: "${var.project_name}"
               environment: "${bundle.target}"
