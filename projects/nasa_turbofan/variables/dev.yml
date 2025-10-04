@@ -1,0 +1,29 @@
+# Primary development environment - actively used
+variables:
+  catalog_name:
+    default: "dev_catalog"
+    
+  project_repo_ref:
+    default: "main"  # Always deploy from main to dev
+    
+  landing_zone_path:
+    default: "/mnt/dev/landing/nasa_turbofan"
+    
+  checkpoint_path:
+    default: "/mnt/dev/checkpoints/nasa_turbofan"
+
+resources:
+  pipelines:
+    turbofan_dlt_pipeline:
+      development: true
+      continuous: false
+      serverless: true
+      
+  jobs:
+    nasa_turbofan_batch_ingestion:
+      schedule:
+        pause_status: "PAUSED"  # Manual trigger in dev
+        
+    run_turbofan_dlt:
+      schedule:
+        pause_status: "PAUSED"  # Manual trigger in dev

@@ -1,157 +1,29 @@
 bundle:
-  name: test-deployment
+  name: base-deployment-template
 
 variables:
-  project_name:
-    description: "Project name for resources"
-    default: "nyc_taxi"
-
-  source_data_path:
-    description: "Path to source data files"
-    default: "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
-
   notification_email:
-    description: "Email for pipeline notifications"
+    description: "Email for notifications"
     default: "data-engineering@company.com"
-
-  catalog_name:
-    description: "Unity Catalog name"
-    default: "dev_catalog"
-
-  schema_name:
-    description: "Schema name within the catalog"
-    default: "nyc_taxi"
-
-  dlt_pipeline_name:
-    description: "Name of the DLT pipeline"
-    default: "NYC Taxi DLT Pipeline"
-
-  dlt_edition:
-    description: "DLT edition: CORE, PRO, or ADVANCED"
-    default: "ADVANCED"
-
-  dlt_channel:
-    description: "DLT release channel"
-    default: "CURRENT"
-
-  dlt_continuous:
-    description: "Run DLT in continuous mode"
-    default: "false"
-
-  dlt_development:
-    description: "Enable DLT development mode"
-    default: "true"
-
-  workflow_name:
-    description: "Name of the workflow job"
-    default: "NYC Taxi Data Pipeline"
-
-  workflow_cron_schedule:
-    description: "Cron expression for workflow schedule"
-    default: "0 0 1 * * ?"
 
   spark_version:
     description: "Databricks runtime version"
-    default: "13.3.x-scala2.12"
+    default: "14.3.x-scala2.12"
 
   environment_suffix:
     description: "Environment suffix for feature branches"
     default: ""
 
+  default_node_type:
+    description: "Default node type for clusters"
+    default: "Standard_DS3_v2"
 
-resources:
-  pipelines:
-    nyc_taxi_dlt_pipeline:
-      name: "${var.dlt_pipeline_name}${var.environment_suffix}"
-      target: "${var.schema_name}"
-      serverless: true
+  admin_cluster_id:
+    description: "Existing cluster ID for admin tasks"
+    default: ""
 
-      configuration:
-        source_path: "${var.source_data_path}"
-        environment_suffix: "${var.environment_suffix}"
-        catalog_name: "${var.catalog_name}"
-        schema_name: "${var.schema_name}"
-        project_name: "${var.project_name}"
-
-      # UPDATED: Single entry point for DLT pipeline
-      libraries:
-        - file:
-            path: ./src/dlt/dlt_pipeline.py
-
-      development: ${var.dlt_development}
-      channel: ${var.dlt_channel}
-      edition: ${var.dlt_edition}
-      continuous: ${var.dlt_continuous}
-      catalog: ${var.catalog_name}
-
-      notifications:
-        - email_recipients:
-            - ${var.notification_email}
-          alerts:
-            - "on-update-failure"
-            - "on-flow-failure"
-
-  jobs:
-    nyc_taxi_pipeline:
-      name: "${var.workflow_name}${var.environment_suffix}"
-
-      tasks:
-        - task_key: bronze_ingestion
-          spark_python_task:
-            python_file: ./src/jobs/bronze_ingestion.py
-            parameters:
-              - "--catalog"
-              - "${var.catalog_name}"
-              - "--schema"
-              - "${var.schema_name}"
-              - "--source-path"
-              - "${var.source_data_path}"
-          timeout_seconds: 3600
-          job_cluster_key: main_cluster
-
-      job_clusters:
-        - job_cluster_key: main_cluster
-          new_cluster:
-            spark_version: ${var.spark_version}
-            node_type_id: "Standard_DS3_v2"
-            num_workers: 0
-            data_security_mode: SINGLE_USER
-            spark_conf:
-              spark.databricks.unityCatalog.enabled: "true"
-              spark.databricks.cluster.profile: "singleNode"
-              spark.master: "local[*]"
-            custom_tags:
-              environment: "${var.environment_suffix}"
-              project: "${var.project_name}"
-              ResourceClass: "SingleNode"
-
-      schedule:
-        quartz_cron_expression: "${var.workflow_cron_schedule}"
-        timezone_id: "UTC"
-        pause_status: "PAUSED"
-
-      email_notifications:
-        on_failure:
-          - ${var.notification_email}
-
-    run_dlt_pipeline:
-      name: "DLT Pipeline Runner${var.environment_suffix}"
-
-      tasks:
-        - task_key: trigger_dlt_pipeline
-          pipeline_task:
-            pipeline_id: "${resources.pipelines.nyc_taxi_dlt_pipeline.id}"
-            full_refresh: false
-          timeout_seconds: 7200
-
-      schedule:
-        quartz_cron_expression: "0 0 2 * * ?"
-        timezone_id: "UTC"
-        pause_status: "PAUSED"
-
-      email_notifications:
-        on_failure:
-          - ${var.notification_email}
+include:
+  - resources: ./shared/resources/*.yml
 
 targets:
   dev:
@@ -160,48 +32,8 @@ targets:
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}${var.environment_suffix}
 
-    variables:
-      catalog_name:
-        default: "dev_catalog"
-      schema_name:
-        default: "nyc_taxi"
-      dlt_development:
-        default: "true"
-      dlt_continuous:
-        default: "false"
-      dlt_edition:
-        default: "ADVANCED"
-
-  staging:
-    mode: production
-    workspace:
-      root_path: /Workspace/Shared/.bundle/${bundle.name}/staging
-
-    variables:
-      catalog_name:
-        default: "staging_catalog"
-      schema_name:
-        default: "${var.project_name}"
-      dlt_development:
-        default: "false"
-      dlt_continuous:
-        default: "false"
-      dlt_edition:
-        default: "ADVANCED"
-
+  # Prod config kept as reference - not used for this project
   prod:
     mode: production
     workspace:
       root_path: /Workspace/Shared/.bundle/${bundle.name}/prod
-
-    variables:
-      catalog_name:
-        default: "prod_catalog"
-      schema_name:
-        default: "${var.project_name}"
-      dlt_development:
-        default: "false"
-      dlt_continuous:
-        default: "true"
-      dlt_edition:
-        default: "ADVANCED"

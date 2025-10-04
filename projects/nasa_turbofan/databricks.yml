@@ -1,0 +1,48 @@
+bundle:
+  name: nasa-turbofan-predictive-maintenance
+
+include:
+  - resources: ../../databricks.yml
+  - resources: ./resources/*.yml
+  - resources: ./variables/${bundle.target}.yml
+
+variables:
+  project_name:
+    description: "Project identifier"
+    default: "nasa_turbofan"
+
+  project_repo_url:
+    description: "GitHub repository URL"
+    default: "https://github.com/slowpoison752/nasa_turbofan_engine_degradation_simulation-.git"
+
+  project_repo_ref:
+    description: "Git branch/tag/commit to deploy"
+    default: "main"
+
+  project_workspace_path:
+    description: "Workspace path for project code"
+    default: "/Workspace/Projects/nasa_turbofan"
+
+  nasa_data_url:
+    description: "NASA C-MAPSS dataset URL"
+    default: "https://ti.arc.nasa.gov/m/project/prognostic-repository/CMAPSSData.zip"
+
+  bearing_data_url:
+    description: "UC Berkeley bearing dataset URL"
+    default: "https://csegroups.case.edu/bearingdatacenter/pages/download-data-file"
+
+  catalog_name:
+    description: "Unity Catalog name"
+    default: "dev_catalog"
+
+  schema_name:
+    description: "Schema name"
+    default: "manufacturing_iot"
+
+  landing_zone_path:
+    description: "Path for raw data ingestion"
+    default: "/mnt/landing/nasa_turbofan"
+
+  checkpoint_path:
+    description: "Checkpoint location for streaming"
+    default: "/mnt/checkpoints/nasa_turbofan"

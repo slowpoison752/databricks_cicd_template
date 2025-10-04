@@ -1,0 +1,27 @@
+bundle:
+  name: nyc-taxi-pipeline
+
+include:
+  - resources: ../../databricks.yml
+  - resources: ./resources/*.yml
+
+variables:
+  project_name:
+    description: "Project name for resources"
+    default: "nyc_taxi"
+
+  source_data_path:
+    description: "Path to source data files"
+    default: "/databricks-datasets/nyctaxi/tripdata/yellow/yellow_tripdata_2019-01.csv.gz"
+
+  catalog_name:
+    description: "Unity Catalog name"
+    default: "dev_catalog"
+
+  schema_name:
+    description: "Schema name within the catalog"
+    default: "nyc_taxi"
+
+  dlt_pipeline_name:
+    description: "Name of the DLT pipeline"
+    default: "NYC Taxi DLT Pipeline"

@@ -1,0 +1,30 @@
+# Production config - kept as reference only
+# Not actively deployed for this learning project
+variables:
+  catalog_name:
+    default: "prod_catalog"
+
+  project_repo_ref:
+    default: "tags/v*"  # Would only deploy from version tags
+
+  landing_zone_path:
+    default: "/mnt/prod/landing/nasa_turbofan"
+
+  checkpoint_path:
+    default: "/mnt/prod/checkpoints/nasa_turbofan"
+
+resources:
+  pipelines:
+    turbofan_dlt_pipeline:
+      development: false
+      continuous: true
+      serverless: false
+
+  jobs:
+    nasa_turbofan_batch_ingestion:
+      schedule:
+        pause_status: "UNPAUSED"
+
+    run_turbofan_dlt:
+      schedule:
+        pause_status: "UNPAUSED"

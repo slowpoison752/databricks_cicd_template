@@ -1,0 +1,24 @@
+resources:
+  clusters:
+    nyc_taxi_interactive:
+      cluster_name: "[${bundle.target}] NYC Taxi - Interactive"
+      spark_version: ${var.spark_version}
+      node_type_id: ${var.default_node_type}
+
+      autoscale:
+        min_workers: 0
+        max_workers: 2
+
+      autotermination_minutes: 30
+
+      data_security_mode: SINGLE_USER
+
+      spark_conf:
+        spark.databricks.unityCatalog.enabled: "true"
+        spark.databricks.cluster.profile: "singleNode"
+        spark.databricks.delta.preview.enabled: "true"
+
+      custom_tags:
+        project: "${var.project_name}"
+        environment: "${bundle.target}"
+        purpose: "interactive"
