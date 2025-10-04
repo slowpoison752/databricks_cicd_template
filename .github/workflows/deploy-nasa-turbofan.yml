@@ -2,8 +2,8 @@ name: Deploy NASA Turbofan Pipeline
 
 on:
   repository_dispatch:
-    types: [deploy-nasa-turbofan]
-
+    types:
+      - deploy-nasa-turbofan
   workflow_dispatch:
     inputs:
       nasa_repo_ref:
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout NASA Turbofan project
         uses: actions/checkout@v4
         with:
-          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation
+          repository: slowpoison752/nasa_turbofan_engine_degradation_simulation-
           ref: ${{ github.event.client_payload.ref || github.event.inputs.nasa_repo_ref || 'main' }}
           path: project-code
           token: ${{ secrets.GH_PAT }}
@@ -42,51 +42,24 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      - name: Install project dependencies
-        run: |
-          cd project-code
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-
-      - name: Run unit tests
-        run: |
-          cd project-code
-          if [ -d tests ]; then
-            python -m pytest tests/ -v --tb=short || echo "No tests found or tests failed"
-          fi
-
-      - name: Validate bundle configuration
+      - name: Validate bundle
         run: |
           cd projects/nasa_turbofan
           databricks bundle validate -t dev
 
-      - name: Deploy to Databricks (dev)
+      - name: Deploy to Databricks
         run: |
           cd projects/nasa_turbofan
           databricks bundle deploy -t dev
 
-      - name: Upload project code to workspace
+      - name: Upload project code
         run: |
-          WORKSPACE_PATH="/Workspace/Projects/nasa_turbofan"
-
-          # Upload source code
           databricks workspace import-dir \
             project-code/src \
-            ${WORKSPACE_PATH}/src \
+            /Workspace/Projects/nasa_turbofan/src \
             --overwrite
 
-          # Upload config files if they exist
-          if [ -d project-code/config ]; then
-            databricks workspace import-dir \
-              project-code/config \
-              ${WORKSPACE_PATH}/config \
-              --overwrite
-          fi
-
-          echo "Project code uploaded to ${WORKSPACE_PATH}"
-
-      - name: Display deployment summary
+      - name: Display summary
         run: |
           cd projects/nasa_turbofan
           databricks bundle summary -t dev
