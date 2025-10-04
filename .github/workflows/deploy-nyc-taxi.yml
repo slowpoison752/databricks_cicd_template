@@ -16,6 +16,7 @@ on:
       - 'projects/nyc_taxi/**'
 
   workflow_dispatch:
+    inputs: {}
 
 env:
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
