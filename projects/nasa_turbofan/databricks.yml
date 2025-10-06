@@ -11,7 +11,7 @@ variables:
 
   project_workspace_path:
     description: "Workspace path for project code"
-    default: "/Workspace/Projects/nasa_turbofan"
+    default: "/Users/00caf79c-aded-4af1-afd3-8cefba007389/projects/nasa_turbofan"
 
   nasa_data_url:
     description: "NASA C-MAPSS dataset URL"
@@ -54,7 +54,7 @@ targets:
     mode: production
     default: true
     workspace:
-      root_path: /Workspace/Shared/.bundle/${bundle.name}/dev
+      root_path: /Users/00caf79c-aded-4af1-afd3-8cefba007389/.bundle/${bundle.name}/dev
 
   prod:
     mode: production

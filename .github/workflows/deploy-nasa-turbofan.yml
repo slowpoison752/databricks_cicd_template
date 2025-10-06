@@ -56,7 +56,7 @@ jobs:
         run: |
           databricks workspace import-dir \
             project-code/src \
-            /Workspace/Projects/nasa_turbofan/src \
+            /Users/00caf79c-aded-4af1-afd3-8cefba007389/projects/nasa_turbofan/src \
             --overwrite
 
       - name: Display summary
